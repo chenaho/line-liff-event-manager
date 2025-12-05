@@ -1,0 +1,35 @@
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Node
+node_modules/
+npm-debug.log
+
+# Go
+backend/main
+backend/go.sum
+# Keep go.sum usually, but sometimes people ignore it. Best practice is to keep it.
+# Let's keep go.sum.
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Build Output
+frontend/dist/
+backend/tmp/
+
+# Environment Variables & Secrets (CRITICAL)
+.env
+*.env
+firebase-key.json
+backend/firebase-key.json
+
+# Docker
+.docker/

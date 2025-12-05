@@ -1,0 +1,32 @@
+version: '3.8'
+services:
+  # 1. Backend API
+  app-backend:
+    build: ./backend
+    environment:
+      - GO_ENV=production
+      - FIREBASE_CREDENTIALS=/app/firebase-key.json
+    volumes:
+      - ./firebase-key.json:/app/firebase-key.json
+    ports:
+      - "8080:8080"
+
+  # 2. Frontend (Static served by Nginx) & Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8000:80"
+      - "8443:443"
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html # Vue build output
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      # - ./certbot/conf:/etc/letsencrypt
+      # - ./certbot/www:/var/www/certbot
+    depends_on:
+      - app-backend
+  # 3. SSL Auto-renew (Commented out for local dev)
+  # certbot:
+  #   image: certbot/certbot
+  #   volumes:
+  #     - ./certbot/conf:/etc/letsencrypt
+  #     - ./certbot/www:/var/www/certbot

@@ -127,6 +127,11 @@ func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, a
 				return errors.New("not registered")
 			}
 
+			// IMPORTANT: Read the record status BEFORE deleting it
+			// to avoid "read after write in transaction" error
+			var oldRecord models.Interaction
+			recordDoc.DataTo(&oldRecord)
+
 			// Delete record
 			if err := tx.Delete(recordRef); err != nil {
 				return err
@@ -134,10 +139,6 @@ func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, a
 
 			// If user was SUCCESS, we might need to promote someone from WAITLIST.
 			// Spec: "User A (SUCCESS) cancel -> System auto promote Waitlist #1 (User B) to SUCCESS"
-			// We need to know if the deleted user was SUCCESS.
-			var oldRecord models.Interaction
-			recordDoc.DataTo(&oldRecord)
-
 			if oldRecord.Status == "SUCCESS" {
 				// Find first waitlist candidate
 				// We need to query again or use the snapshot we could have taken.

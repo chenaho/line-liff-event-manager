@@ -27,7 +27,9 @@ const submitVote = async () => {
 
 // Calculate percentages
 const results = computed(() => {
-  if (!props.status || !props.status.records) return {}
+  if (!props.status || !props.status.records) {
+    return { counts: {}, total: 0 }
+  }
   const counts = {}
   let total = 0
   props.status.records.forEach(r => {
@@ -47,6 +49,7 @@ const getPercent = (option) => {
 }
 
 const getVoteCount = (option) => {
+  if (!results.value.counts) return 0
   return results.value.counts[option] || 0
 }
 

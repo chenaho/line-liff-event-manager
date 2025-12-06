@@ -29,6 +29,8 @@ export const useAuthStore = defineStore('auth', {
         },
         async loginBackend(idToken) {
             try {
+                console.log('Login attempt with idToken:', idToken ? `${idToken.substring(0, 20)}...` : 'EMPTY!')
+                console.log('idToken length:', idToken ? idToken.length : 0)
                 const response = await axios.post('/api/auth/login', { idToken })
                 this.token = response.data.token
                 this.user = response.data.user

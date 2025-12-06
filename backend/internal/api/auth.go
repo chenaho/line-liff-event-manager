@@ -29,7 +29,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	log.Printf("Login request received for token: %s...", req.IDToken[:20])
+	tokenPreview := req.IDToken
+	if len(req.IDToken) > 20 {
+		tokenPreview = req.IDToken[:20] + "..."
+	}
+	log.Printf("Login request received, token length: %d, preview: %s", len(req.IDToken), tokenPreview)
 
 	token, user, err := h.Service.Login(c.Request.Context(), req.IDToken)
 	if err != nil {

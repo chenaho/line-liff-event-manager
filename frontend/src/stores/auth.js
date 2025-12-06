@@ -13,18 +13,26 @@ export const useAuthStore = defineStore('auth', {
     actions: {
         async initLiff() {
             try {
+                console.log('=== LIFF Initialization ===')
+                console.log('LIFF ID from env:', this.liffId)
+
                 await liff.init({ liffId: this.liffId })
                 this.isLiffInitialized = true
+                console.log('LIFF initialized successfully')
+                console.log('Is logged in:', liff.isLoggedIn())
 
                 if (liff.isLoggedIn()) {
                     const idToken = liff.getIDToken()
+                    console.log('ID Token obtained:', idToken ? 'YES' : 'NO')
+                    console.log('ID Token length:', idToken ? idToken.length : 0)
                     await this.loginBackend(idToken)
                 } else {
+                    console.log('User not logged in, redirecting to LINE login...')
                     liff.login()
                 }
             } catch (err) {
                 this.error = 'LIFF Init Failed: ' + err.message
-                console.error(err)
+                console.error('LIFF Init Error:', err)
             }
         },
         async loginBackend(idToken) {

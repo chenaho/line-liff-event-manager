@@ -26,6 +26,14 @@ export const useAuthStore = defineStore('auth', {
                     console.log('ID Token obtained:', idToken ? 'YES' : 'NO')
                     console.log('ID Token length:', idToken ? idToken.length : 0)
 
+                    // Get user's mid (Member ID)
+                    const context = liff.getContext()
+                    if (context && context.userId) {
+                        console.log('=== User Information ===')
+                        console.log('User mid (Member ID):', context.userId)
+                        console.log('========================')
+                    }
+
                     if (!idToken) {
                         console.warn('ID Token is empty! Forcing re-login...')
                         liff.logout()

@@ -3,8 +3,11 @@ services:
   app-backend:
     build: ./backend
     environment:
+      - PORT=8080
       - GO_ENV=production
       - FIREBASE_CREDENTIALS=/app/firebase-key.json
+      - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_LIST=${ADMIN_LIST}
     volumes:
       - ./firebase-key.json:/app/firebase-key.json
     ports:

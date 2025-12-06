@@ -18,8 +18,8 @@ const avatarUrl = computed(() => {
 })
 
 const userIdShort = computed(() => {
-  if (!authStore.user?.lineUserID) return 'U...'
-  return authStore.user.lineUserID.substring(0, 8) + '...'
+  if (!authStore.user?.lineUserId) return 'U...'
+  return authStore.user.lineUserId.substring(0, 8) + '...'
 })
 
 onMounted(() => {

@@ -43,10 +43,8 @@ func (s *AuthService) VerifyLineToken(idToken string) (*LineTokenResponse, error
 	// Content-Type: application/x-www-form-urlencoded
 	// id_token=...&client_id=...
 
-	clientID := os.Getenv("LINE_LIFF_ID") // Or Channel ID. For simplicity, we might skip client_id check if not strictly required by verify endpoint, but it's good practice.
-	// Actually, verify endpoint requires client_id.
-	// If we don't have it in env, we might just decode the token if we trust the source (NOT SECURE).
-	// Let's assume we use the endpoint.
+	clientID := os.Getenv("LINE_CHANNEL_ID")
+	// The LINE verify endpoint requires the Channel ID (not LIFF ID)
 
 	data := url.Values{}
 	data.Set("id_token", idToken)

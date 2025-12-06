@@ -51,8 +51,23 @@ func main() {
 	})
 
 	r.GET("/api/health", func(c *gin.Context) {
+		// Check required environment variables
+		jwtSecret := os.Getenv("JWT_SECRET")
+		lineChannelID := os.Getenv("LINE_CHANNEL_ID")
+		adminList := os.Getenv("ADMIN_LIST")
+
+		envStatus := gin.H{
+			"JWT_SECRET":      jwtSecret != "",
+			"LINE_CHANNEL_ID": lineChannelID != "",
+			"ADMIN_LIST":      adminList != "",
+		}
+
+		allConfigured := jwtSecret != "" && lineChannelID != "" && adminList != ""
+
 		c.JSON(http.StatusOK, gin.H{
-			"status": "ok",
+			"status":         "ok",
+			"env_configured": allConfigured,
+			"env_status":     envStatus,
 		})
 	})
 

@@ -1,0 +1,3 @@
+eventmanager.chenaho.com {
+    reverse_proxy app-backend:8080
+}

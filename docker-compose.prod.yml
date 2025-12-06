@@ -12,16 +12,20 @@ services:
       - "8080:8080"
     restart: always
 
-  # Nginx Reverse Proxy (for API)
-  nginx:
-    image: nginx:alpine
+  # Caddy Reverse Proxy (HTTPS)
+  caddy:
+    image: caddy:2-alpine
+    restart: always
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      # - ./certbot/conf:/etc/letsencrypt
-      # - ./certbot/www:/var/www/certbot
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
     depends_on:
       - app-backend
-    restart: always
+
+volumes:
+  caddy_data:
+  caddy_config:

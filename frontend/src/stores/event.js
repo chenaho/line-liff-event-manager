@@ -13,10 +13,13 @@ export const useEventStore = defineStore('event', {
             this.loading = true
             try {
                 const response = await axios.get('/api/events')
-                this.events = response.data
+                // Ensure events is always an array
+                this.events = response.data || []
             } catch (err) {
                 this.error = 'Fetch Events Failed: ' + err.message
                 console.error(err)
+                // Keep events as empty array on error
+                this.events = []
             } finally {
                 this.loading = false
             }
@@ -25,6 +28,10 @@ export const useEventStore = defineStore('event', {
             this.loading = true
             try {
                 const response = await axios.post('/api/events', eventData)
+                // Ensure events is an array before using unshift
+                if (!this.events) {
+                    this.events = []
+                }
                 this.events.unshift(response.data)
                 return response.data
             } catch (err) {

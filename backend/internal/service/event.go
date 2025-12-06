@@ -56,7 +56,8 @@ func (s *EventService) UpdateEventStatus(ctx context.Context, eventID string, is
 
 func (s *EventService) ListEvents(ctx context.Context, limit int) ([]*models.Event, error) {
 	iter := s.Repo.Client.Collection("events").OrderBy("createdAt", firestore.Desc).Limit(limit).Documents(ctx)
-	var events []*models.Event
+	// Initialize as empty slice instead of nil to return [] instead of null in JSON
+	events := make([]*models.Event, 0)
 	for {
 		doc, err := iter.Next()
 		if err == iterator.Done {

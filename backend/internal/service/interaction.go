@@ -59,103 +59,95 @@ func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, a
 			return errors.New("event is not active")
 		}
 
-		// Check if user already registered
-		recordRef := eventRef.Collection("records").Doc(action.UserID)
-		recordDoc, err := tx.Get(recordRef)
-		alreadyRegistered := err == nil && recordDoc.Exists()
+		recordsRef := eventRef.Collection("records")
 
 		if action.Count > 0 {
-			// Register (+1)
-			if alreadyRegistered {
-				return errors.New("already registered")
+			// +1 Registration
+
+			// Get user to check if admin
+			userRef := s.Repo.Client.Collection("users").Doc(action.UserID)
+			userDoc, err := tx.Get(userRef)
+			isAdmin := false
+			if err == nil {
+				var user models.User
+				userDoc.DataTo(&user)
+				isAdmin = user.Role == "admin"
 			}
 
-			// Count current participants
-			// Note: Firestore count aggregation is cheaper but for transaction consistency we might need to read or keep a counter.
-			// For simplicity/correctness in transaction, we should maintain a counter in the event doc or count documents.
-			// Let's assume we count documents (might be slow for large events, but fine for "LineUp" which usually has small limits).
-			// Actually, better to store a "currentCount" in event doc if we want strict limits.
-			// But spec didn't define "currentCount" in Event model.
-			// Let's query all records to count.
-
-			// Query inside transaction is limited.
-			// "Queries inside transactions must be ancestor queries".
-			// So we can query collection("records") since it's subcollection.
-
-			// However, for "Vibe Coding", let's just read all records (assuming small number < 100).
-			recordsSnap, err := tx.Documents(eventRef.Collection("records")).GetAll()
+			// Read all records to count user's active registrations and total
+			recordsSnap, err := tx.Documents(recordsRef).GetAll()
 			if err != nil {
 				return err
 			}
 
-			currentCount := 0
+			userActiveCount := 0
+			totalActiveCount := 0
+
 			for _, doc := range recordsSnap {
 				var rec models.Interaction
 				doc.DataTo(&rec)
-				if rec.Type == models.InteractionTypeLineUp && rec.Status == "SUCCESS" {
-					currentCount++
+				if rec.Type == models.InteractionTypeLineUp && rec.Status != "CANCELLED" {
+					totalActiveCount++
+					if rec.UserID == action.UserID {
+						userActiveCount++
+					}
 				}
 			}
 
-			if currentCount >= event.Config.MaxParticipants {
-				if event.Config.WaitlistLimit > 0 {
-					// Check waitlist count
-					waitlistCount := 0
-					for _, doc := range recordsSnap {
-						var rec models.Interaction
-						doc.DataTo(&rec)
-						if rec.Type == models.InteractionTypeLineUp && rec.Status == "WAITLIST" {
-							waitlistCount++
-						}
-					}
-					if waitlistCount >= event.Config.WaitlistLimit {
-						return errors.New("waitlist full")
-					}
-					action.Status = "WAITLIST"
-				} else {
-					return errors.New("event full")
-				}
+			// Check user limit (admin bypasses)
+			maxPerUser := event.Config.MaxCountPerUser
+			if !isAdmin && maxPerUser > 0 && userActiveCount >= maxPerUser {
+				return errors.New("registration limit reached")
+			}
+
+			// Determine status based on capacity
+			if totalActiveCount >= event.Config.MaxParticipants {
+				action.Status = "WAITLIST"
 			} else {
 				action.Status = "SUCCESS"
 			}
 
-			return tx.Set(recordRef, action)
+			// Create new registration record with auto-generated ID
+			action.Timestamp = time.Now()
+			return tx.Create(recordsRef.NewDoc(), action)
 
 		} else if action.Count < 0 {
-			// Cancel (-1)
-			if !alreadyRegistered {
-				return errors.New("not registered")
-			}
+			// -1 Cancellation (LIFO - Last In, First Out)
 
-			// IMPORTANT: Read the record status BEFORE updating it
-			// to avoid "read after write in transaction" error
-			var oldRecord models.Interaction
-			recordDoc.DataTo(&oldRecord)
-
-			// Soft delete: Mark as CANCELLED instead of deleting
-			// This preserves history and avoids transaction read-after-write issues
-			now := time.Now()
-			updates := []firestore.Update{
-				{Path: "status", Value: "CANCELLED"},
-				{Path: "cancelledAt", Value: now},
-			}
-
-			if err := tx.Update(recordRef, updates); err != nil {
+			// Read all records to find user's most recent active registration
+			recordsSnap, err := tx.Documents(recordsRef).GetAll()
+			if err != nil {
 				return err
 			}
 
-			// If user was SUCCESS, we need to promote someone from WAITLIST
-			if oldRecord.Status == "SUCCESS" {
-				// Find first waitlist candidate
-				// Read all records to find waitlist (this is safe because we haven't written yet)
-				recordsSnap, err := tx.Documents(eventRef.Collection("records")).GetAll()
-				if err != nil {
-					return err
+			var latestRecord *firestore.DocumentSnapshot
+			var latestTime time.Time
+
+			for _, doc := range recordsSnap {
+				var rec models.Interaction
+				doc.DataTo(&rec)
+				if rec.UserID == action.UserID &&
+					rec.Type == models.InteractionTypeLineUp &&
+					rec.Status != "CANCELLED" {
+					if latestRecord == nil || rec.Timestamp.After(latestTime) {
+						latestRecord = doc
+						latestTime = rec.Timestamp
+					}
 				}
+			}
 
-				var firstWaiter *firestore.DocumentSnapshot
+			if latestRecord == nil {
+				return errors.New("no active registration to cancel")
+			}
+
+			// Read status before updating
+			var oldRecord models.Interaction
+			latestRecord.DataTo(&oldRecord)
+
+			// Find waitlist candidate BEFORE any writes (if needed)
+			var firstWaiter *firestore.DocumentSnapshot
+			if oldRecord.Status == "SUCCESS" {
 				var earliestTime time.Time
-
 				for _, doc := range recordsSnap {
 					var rec models.Interaction
 					doc.DataTo(&rec)
@@ -166,12 +158,24 @@ func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, a
 						}
 					}
 				}
+			}
 
-				if firstWaiter != nil {
-					return tx.Update(firstWaiter.Ref, []firestore.Update{
-						{Path: "status", Value: "SUCCESS"},
-					})
-				}
+			// NOW do writes: Soft delete by marking as CANCELLED
+			now := time.Now()
+			updates := []firestore.Update{
+				{Path: "status", Value: "CANCELLED"},
+				{Path: "cancelledAt", Value: now},
+			}
+
+			if err := tx.Update(latestRecord.Ref, updates); err != nil {
+				return err
+			}
+
+			// Promote waitlist candidate if found
+			if firstWaiter != nil {
+				return tx.Update(firstWaiter.Ref, []firestore.Update{
+					{Path: "status", Value: "SUCCESS"},
+				})
 			}
 			return nil
 		}

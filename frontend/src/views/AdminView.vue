@@ -197,15 +197,23 @@ const getTypeBadgeClass = (type) => {
           </div>
 
           <div v-if="newEvent.type === 'LINEUP'" class="space-y-3 border-t pt-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Max Participants</label>
-              <input 
-                v-model.number="newEvent.config.maxParticipants" 
-                type="number" 
-                class="w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-            </div>
-            <div>
+              <!-- LINEUP Config -->
+              <div v-if="newEvent.type === 'LINEUP'" class="space-y-3">
+                <input 
+                  type="number" 
+                  v-model.number="newEvent.config.maxParticipants" 
+                  placeholder="最大參與人數"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  required
+                >
+                <input 
+                  type="number" 
+                  v-model.number="newEvent.config.maxCountPerUser" 
+                  placeholder="每人報名上限 (0=無限制)"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  min="0"
+                >
+              </div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Waitlist Limit</label>
               <input 
                 v-model.number="newEvent.config.waitlistLimit" 

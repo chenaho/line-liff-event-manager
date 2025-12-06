@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 
 	"event-manager/internal/service"
@@ -23,9 +24,12 @@ type LoginRequest struct {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("Login binding error: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	log.Printf("Login request received for token: %s...", req.IDToken[:20])
 
 	token, user, err := h.Service.Login(c.Request.Context(), req.IDToken)
 	if err != nil {

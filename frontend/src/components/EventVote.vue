@@ -1,22 +1,27 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useEventStore } from '../stores/event'
+import { useToast } from '../composables/useToast'
 
 const props = defineProps(['event', 'status'])
 const eventStore = useEventStore()
+const { showToast } = useToast()
 
 const selected = ref([])
 
 const submitVote = async () => {
-  if (selected.value.length === 0) return
+  if (selected.value.length === 0) {
+    showToast('Please select at least one option')
+    return
+  }
   
   try {
     await eventStore.submitAction(props.event.eventId, 'VOTE', {
       selectedOptions: selected.value
     })
-    alert('Voted!')
+    showToast('Vote submitted successfully!')
   } catch (e) {
-    alert('Failed to vote')
+    showToast('Failed to submit vote')
   }
 }
 
@@ -40,42 +45,83 @@ const getPercent = (option) => {
   if (!results.value.total) return 0
   return Math.round(((results.value.counts[option] || 0) / results.value.total) * 100)
 }
+
+const getVoteCount = (option) => {
+  return results.value.counts[option] || 0
+}
+
+const totalVotes = computed(() => {
+  return results.value.total || 0
+})
+
+const isSelected = (option) => {
+  return selected.value.includes(option)
+}
+
+const toggleOption = (option) => {
+  if (props.event.config.allowMultiSelect) {
+    const index = selected.value.indexOf(option)
+    if (index > -1) {
+      selected.value.splice(index, 1)
+    } else {
+      selected.value.push(option)
+    }
+  } else {
+    selected.value = [option]
+  }
+}
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div v-for="option in event.config.options" :key="option" class="border p-3 rounded hover:bg-gray-50 cursor-pointer">
-      <label class="flex items-center w-full cursor-pointer">
-        <input 
-          v-if="event.config.allowMultiSelect" 
-          type="checkbox" 
-          :value="option" 
-          v-model="selected"
-          class="mr-3 h-5 w-5 text-blue-600"
-        >
-        <input 
-          v-else 
-          type="radio" 
-          :value="option" 
-          v-model="selected" 
-          name="vote-option"
-          class="mr-3 h-5 w-5 text-blue-600"
-        > <!-- Note: v-model with array for radio is tricky, assume single value for radio logic but here using array for consistency -->
-        
-        <div class="flex-1">
-          <div class="flex justify-between mb-1">
-            <span class="font-medium">{{ option }}</span>
-            <span class="text-sm text-gray-500">{{ results.counts[option] || 0 }} votes ({{ getPercent(option) }}%)</span>
-          </div>
-          <div class="w-full bg-gray-200 rounded-full h-2.5">
-            <div class="bg-blue-600 h-2.5 rounded-full" :style="{ width: getPercent(option) + '%' }"></div>
-          </div>
-        </div>
-      </label>
+  <div class="fade-in space-y-6">
+    <!-- Event Info Card -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+      <span class="text-xs font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded">VOTE</span>
+      <h2 class="text-2xl font-bold mt-2 text-gray-800">{{ event.title }}</h2>
+      <div class="mt-2 text-xs text-gray-400">
+        {{ event.config.allowMultiSelect ? `複選 (最多 ${event.config.maxVotes || '無限制'} 項)` : '單選' }} • 共 {{ totalVotes }} 票
+      </div>
     </div>
 
-    <button @click="submitVote" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-lg hover:bg-blue-700 transition">
-      Submit Vote
+    <!-- Options -->
+    <div class="space-y-3">
+      <div 
+        v-for="option in event.config.options" 
+        :key="option" 
+        @click="toggleOption(option)"
+        class="relative bg-white rounded-lg p-3 shadow-sm border cursor-pointer transition-all duration-200 hover:shadow-md"
+        :class="isSelected(option) ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-200'"
+      >
+        <div class="flex justify-between items-center relative z-10">
+          <div class="flex items-center gap-3">
+            <!-- Custom Checkbox/Radio -->
+            <div 
+              class="w-5 h-5 rounded border flex items-center justify-center transition-all duration-200"
+              :class="isSelected(option) ? 'bg-blue-500 border-blue-500' : 'border-gray-300'"
+            >
+              <i v-if="isSelected(option)" class="fas fa-check text-white text-xs"></i>
+            </div>
+            <span class="font-medium text-gray-700">{{ option }}</span>
+          </div>
+          <span class="text-sm font-bold text-gray-600">{{ getVoteCount(option) }} 票</span>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="absolute bottom-0 left-0 h-1 bg-blue-100 rounded-bl-lg rounded-br-lg w-full overflow-hidden">
+          <div 
+            class="h-full bg-blue-500 transition-all duration-500" 
+            :style="{ width: getPercent(option) + '%' }"
+          ></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit Button -->
+    <button 
+      @click="submitVote" 
+      class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition-transform"
+    >
+      提交投票
     </button>
   </div>
 </template>

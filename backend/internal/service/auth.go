@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -46,6 +47,7 @@ func (s *AuthService) VerifyLineToken(idToken string) (*LineTokenResponse, error
 
 	clientID := os.Getenv("LINE_CHANNEL_ID")
 	// The LINE verify endpoint requires the Channel ID (not LIFF ID)
+	log.Printf("[LINE VERIFY] Using LINE_CHANNEL_ID: %s", clientID)
 
 	data := url.Values{}
 	data.Set("id_token", idToken)
@@ -53,21 +55,30 @@ func (s *AuthService) VerifyLineToken(idToken string) (*LineTokenResponse, error
 		data.Set("client_id", clientID)
 	}
 
+	log.Printf("[LINE VERIFY] Sending request to LINE API...")
 	resp, err := http.PostForm("https://api.line.me/oauth2/v2.1/verify", data)
 	if err != nil {
+		log.Printf("[LINE VERIFY] HTTP request failed: %v", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
+	log.Printf("[LINE VERIFY] Response status: %d", resp.StatusCode)
+
 	if resp.StatusCode != http.StatusOK {
+		// Read response body for debugging
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("[LINE VERIFY] LINE API returned non-200 status. Body: %s", string(body))
 		return nil, errors.New("invalid line token")
 	}
 
 	var tokenResp LineTokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		log.Printf("[LINE VERIFY] Failed to decode response: %v", err)
 		return nil, err
 	}
 
+	log.Printf("[LINE VERIFY] Successfully verified token for user: %s", tokenResp.Sub)
 	return &tokenResp, nil
 }
 

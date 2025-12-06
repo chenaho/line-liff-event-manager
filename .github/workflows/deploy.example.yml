@@ -55,7 +55,7 @@ jobs:
         username: ${{ secrets.DO_USERNAME }}
         key: ${{ secrets.DO_SSH_KEY }}
         source: "docker-compose.prod.yml,nginx/conf.d/prod.conf,backend/Dockerfile,backend/go.mod,backend/go.sum,backend/cmd,backend/internal,firebase-key.json"
-        target: "/home/chenaho/EventManager"
+        target: "/app/event-manager"
     
     - name: Deploy via SSH
       uses: appleboy/ssh-action@master
@@ -64,7 +64,7 @@ jobs:
         username: ${{ secrets.DO_USERNAME }}
         key: ${{ secrets.DO_SSH_KEY }}
         script: |
-          cd /home/chenaho/EventManager
+          cd /app/event-manager
           # Rename prod files to standard names for simplicity or use -f
           mv docker-compose.prod.yml docker-compose.yml
           mv nginx/conf.d/prod.conf nginx/conf.d/default.conf
@@ -74,9 +74,9 @@ jobs:
           # Create .env for backend if needed (or pass via env vars in docker-compose)
           # For now, we assume defaults or user manually sets .env on server. 
           # But better to create a basic one.
-          echo "PORT=8080" > /home/chenaho/EventManager/backend/.env
-          echo "GO_ENV=production" >> /home/chenaho/EventManager/backend/.env
-          echo "FIREBASE_CREDENTIALS=/home/chenaho/EventManager/firebase-key.json" >> /home/chenaho/EventManager/backend/.env
+          echo "PORT=8080" > backend/.env
+          echo "GO_ENV=production" >> backend/.env
+          echo "FIREBASE_CREDENTIALS=/app/firebase-key.json" >> backend/.env
           
           docker-compose down
           docker-compose up -d --build

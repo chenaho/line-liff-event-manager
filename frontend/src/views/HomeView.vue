@@ -1,12 +1,17 @@
 <script setup>
 import { onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 
 onMounted(() => {
+  console.log('HomeView mounted')
+  console.log('Query params:', route.query)
+  console.log('EventId from query:', route.query.eventId)
+  
   if (!authStore.isLiffInitialized) {
     authStore.initLiff()
   }
@@ -14,13 +19,23 @@ onMounted(() => {
 
 watch(() => authStore.user, (user) => {
   if (user) {
-    if (user.role === 'admin') {
+    // Check if there's an eventId in the query parameters
+    const eventId = route.query.eventId
+    
+    console.log('User logged in:', user.lineDisplayName)
+    console.log('User role:', user.role)
+    console.log('EventId from query:', eventId)
+    
+    if (eventId) {
+      console.log('Redirecting to event:', eventId)
+      router.push(`/event/${eventId}`)
+    } else if (user.role === 'admin') {
+      console.log('Redirecting to admin dashboard')
       router.push('/admin')
     } else {
-      // If there is an event ID in query, redirect there?
-      // Or just stay home / list events?
-      // For now, let's just show a welcome message or list.
-      // Spec says "User View". Maybe list events?
+      console.log('Regular user without specific event - staying on home')
+      // Regular user without specific event - stay on home
+      // Could show a list of events or welcome message
     }
   }
 })

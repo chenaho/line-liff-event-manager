@@ -43,21 +43,30 @@ onMounted(() => {
 })
 
 const createEvent = async () => {
+  // Create a copy to avoid mutating the original
+  const eventData = JSON.parse(JSON.stringify(newEvent.value))
+  
   // Process options for VOTE
-  if (newEvent.value.type === 'VOTE') {
-    newEvent.value.config.options = newEvent.value.config.optionsText.split('\n').filter(o => o.trim())
+  if (eventData.type === 'VOTE') {
+    eventData.config.options = eventData.config.optionsText.split('\n').filter(o => o.trim())
+    delete eventData.config.optionsText
   }
   
   // Remove empty time fields
-  if (!newEvent.value.config.startTime) {
-    delete newEvent.value.config.startTime
+  if (!eventData.config.startTime) {
+    delete eventData.config.startTime
   }
-  if (!newEvent.value.config.endTime) {
-    delete newEvent.value.config.endTime
+  if (!eventData.config.endTime) {
+    delete eventData.config.endTime
+  }
+  
+  // Remove optionsText for non-VOTE types
+  if (eventData.type !== 'VOTE' && eventData.config.optionsText !== undefined) {
+    delete eventData.config.optionsText
   }
   
   try {
-    await eventStore.createEvent(newEvent.value)
+    await eventStore.createEvent(eventData)
     showCreateModal.value = false
     // Reset form
     newEvent.value.title = ''
@@ -66,7 +75,8 @@ const createEvent = async () => {
     newEvent.value.config.endTime = ''
     showToast('Event created successfully!')
   } catch (e) {
-    showToast('Failed to create event')
+    console.error('Create event error:', e)
+    showToast('Failed to create event: ' + (e.response?.data?.error || e.message))
   }
 }
 

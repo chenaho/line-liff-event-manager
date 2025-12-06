@@ -4,5 +4,5 @@ import vue from '@vitejs/plugin-vue'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
-  base: '/line-liff-event-manager/', // GitHub Pages base path
+  base: '/line-liff-event-manager/', // GitHub Pages base path - REQUIRED for CSS to load
 })

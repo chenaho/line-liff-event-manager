@@ -9,6 +9,8 @@ const eventStore = useEventStore()
 const authStore = useAuthStore()
 const { showToast } = useToast()
 
+const registrationNote = ref('')
+
 // Count user's active registrations
 const myRegistrationCount = computed(() => {
   if (!props.status?.records) return 0
@@ -39,45 +41,35 @@ const waitlistCount = computed(() => {
 const isFull = computed(() => successCount.value >= props.event.config.maxParticipants)
 const remaining = computed(() => props.event.config.maxParticipants - successCount.value)
 
-// Group participants by user and count registrations
+// Show individual registrations instead of grouping
 const participants = computed(() => {
   if (!props.status?.records) return []
   
-  const userMap = new Map()
-  props.status.records.forEach(r => {
-    if (r.type === 'LINEUP' && r.status === 'SUCCESS') {
-      if (!userMap.has(r.userId)) {
-        userMap.set(r.userId, {
-          userId: r.userId,
-          displayName: r.userDisplayName || 'Unknown',
-          count: 0
-        })
-      }
-      userMap.get(r.userId).count++
-    }
-  })
-  
-  return Array.from(userMap.values())
+  return props.status.records
+    .filter(r => r.type === 'LINEUP' && r.status === 'SUCCESS')
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)) // Sort by timestamp
+    .map(r => ({
+      userId: r.userId,
+      displayName: r.userDisplayName || 'Unknown',
+      note: r.note || '',
+      timestamp: r.timestamp,
+      isMe: r.userId === authStore.user?.lineUserId
+    }))
 })
 
 const waitlist = computed(() => {
   if (!props.status?.records) return []
   
-  const userMap = new Map()
-  props.status.records.forEach(r => {
-    if (r.type === 'LINEUP' && r.status === 'WAITLIST') {
-      if (!userMap.has(r.userId)) {
-        userMap.set(r.userId, {
-          userId: r.userId,
-          displayName: r.userDisplayName || 'Unknown',
-          count: 0
-        })
-      }
-      userMap.get(r.userId).count++
-    }
-  })
-  
-  return Array.from(userMap.values())
+  return props.status.records
+    .filter(r => r.type === 'LINEUP' && r.status === 'WAITLIST')
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+    .map(r => ({
+      userId: r.userId,
+      displayName: r.userDisplayName || 'Unknown',
+      note: r.note || '',
+      timestamp: r.timestamp,
+      isMe: r.userId === authStore.user?.lineUserId
+    }))
 })
 
 const getAvatarUrl = (displayName) => {
@@ -94,9 +86,11 @@ const handleRegister = async () => {
   try {
     await eventStore.submitAction(props.event.eventId, 'LINEUP', {
       count: 1,
-      userDisplayName: authStore.user?.lineDisplayName
+      userDisplayName: authStore.user?.lineDisplayName,
+      note: registrationNote.value
     })
     showToast('報名成功！')
+    registrationNote.value = '' // Clear note after registration
   } catch (e) {
     showToast('報名失敗: ' + e.message)
   }
@@ -155,6 +149,20 @@ const handleCancel = async () => {
       </div>
     </div>
 
+    <!-- Registration Note Input -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+      <label class="block text-sm font-medium text-gray-700 mb-2">
+        <i class="fas fa-sticky-note mr-1"></i>
+        報名備註 (選填)
+      </label>
+      <input 
+        v-model="registrationNote"
+        type="text"
+        placeholder="例如：幫朋友報名、攜帶裝備等"
+        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+      >
+    </div>
+
     <!-- Action Buttons -->
     <div class="grid grid-cols-2 gap-3">
       <button 
@@ -171,7 +179,7 @@ const handleCancel = async () => {
         class="bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <i class="fas fa-plus-circle mr-2"></i>
-        再報名一次
+        報名+1
       </button>
     </div>
 
@@ -189,22 +197,30 @@ const handleCancel = async () => {
       <div v-else class="divide-y divide-gray-100">
         <div 
           v-for="(participant, index) in participants" 
-          :key="participant.userId"
-          class="px-4 py-3 hover:bg-gray-50 transition-colors flex items-center gap-3"
+          :key="index"
+          class="px-4 py-3 hover:bg-gray-50 transition-colors"
+          :class="participant.isMe ? 'bg-blue-50' : ''"
         >
-          <span class="text-sm font-bold text-gray-400 w-6">{{ index + 1 }}</span>
-          <img 
-            :src="getAvatarUrl(participant.displayName)" 
-            class="w-10 h-10 rounded-full bg-gray-200 border-2 border-blue-500"
-            :alt="participant.displayName"
-          >
-          <div class="flex-1">
-            <div class="font-medium text-gray-800">
-              {{ participant.displayName }}
-              <span v-if="participant.count > 1" class="text-blue-600 font-bold ml-1">(x{{ participant.count }})</span>
+          <div class="flex items-center gap-3">
+            <span class="text-sm font-bold text-gray-400 w-6">{{ index + 1 }}</span>
+            <img 
+              :src="getAvatarUrl(participant.displayName)" 
+              class="w-10 h-10 rounded-full bg-gray-200 border-2"
+              :class="participant.isMe ? 'border-blue-500' : 'border-gray-300'"
+              :alt="participant.displayName"
+            >
+            <div class="flex-1">
+              <div class="font-medium text-gray-800">
+                {{ participant.displayName }}
+                <span v-if="participant.isMe" class="text-blue-600 text-xs ml-1">(您)</span>
+              </div>
+              <div v-if="participant.note" class="text-xs text-gray-500 mt-0.5">
+                <i class="fas fa-sticky-note mr-1"></i>
+                {{ participant.note }}
+              </div>
             </div>
+            <span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">正取</span>
           </div>
-          <span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">正取</span>
         </div>
       </div>
     </div>
@@ -218,22 +234,30 @@ const handleCancel = async () => {
       <div class="divide-y divide-gray-100">
         <div 
           v-for="(person, index) in waitlist" 
-          :key="person.userId"
-          class="px-4 py-3 hover:bg-gray-50 transition-colors flex items-center gap-3"
+          :key="index"
+          class="px-4 py-3 hover:bg-gray-50 transition-colors"
+          :class="person.isMe ? 'bg-orange-50' : ''"
         >
-          <span class="text-sm font-bold text-gray-400 w-6">{{ index + 1 }}</span>
-          <img 
-            :src="getAvatarUrl(person.displayName)" 
-            class="w-10 h-10 rounded-full bg-gray-200 border-2 border-orange-500"
-            :alt="person.displayName"
-          >
-          <div class="flex-1">
-            <div class="font-medium text-gray-800">
-              {{ person.displayName }}
-              <span v-if="person.count > 1" class="text-orange-600 font-bold ml-1">(x{{ person.count }})</span>
+          <div class="flex items-center gap-3">
+            <span class="text-sm font-bold text-gray-400 w-6">{{ index + 1 }}</span>
+            <img 
+              :src="getAvatarUrl(person.displayName)" 
+              class="w-10 h-10 rounded-full bg-gray-200 border-2"
+              :class="person.isMe ? 'border-orange-500' : 'border-gray-300'"
+              :alt="person.displayName"
+            >
+            <div class="flex-1">
+              <div class="font-medium text-gray-800">
+                {{ person.displayName }}
+                <span v-if="person.isMe" class="text-orange-600 text-xs ml-1">(您)</span>
+              </div>
+              <div v-if="person.note" class="text-xs text-gray-500 mt-0.5">
+                <i class="fas fa-sticky-note mr-1"></i>
+                {{ person.note }}
+              </div>
             </div>
+            <span class="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">候補</span>
           </div>
-          <span class="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">候補</span>
         </div>
       </div>
     </div>

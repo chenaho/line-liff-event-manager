@@ -24,7 +24,7 @@ const getAvatarUrl = (displayName) => {
 }
 
 const isMyMessage = (message) => {
-  return message.userId === authStore.user?.lineUserID
+  return message.userId === authStore.user?.lineUserId
 }
 
 const formatTime = (timestamp) => {

@@ -11,7 +11,7 @@ const { showToast } = useToast()
 
 const myRecord = computed(() => {
   if (!props.status || !props.status.records) return null
-  return props.status.records.find(r => r.userId === authStore.user?.lineUserID && r.type === 'LINEUP')
+  return props.status.records.find(r => r.userId === authStore.user?.lineUserId && r.type === 'LINEUP')
 })
 
 const successCount = computed(() => {

@@ -48,6 +48,14 @@ const createEvent = async () => {
     newEvent.value.config.options = newEvent.value.config.optionsText.split('\n').filter(o => o.trim())
   }
   
+  // Remove empty time fields
+  if (!newEvent.value.config.startTime) {
+    delete newEvent.value.config.startTime
+  }
+  if (!newEvent.value.config.endTime) {
+    delete newEvent.value.config.endTime
+  }
+  
   try {
     await eventStore.createEvent(newEvent.value)
     showCreateModal.value = false
@@ -77,6 +85,14 @@ const updateEvent = async () => {
   // Process options for VOTE
   if (editingEvent.value.type === 'VOTE') {
     editingEvent.value.config.options = editingEvent.value.config.optionsText.split('\n').filter(o => o.trim())
+  }
+  
+  // Remove empty time fields
+  if (!editingEvent.value.config.startTime) {
+    delete editingEvent.value.config.startTime
+  }
+  if (!editingEvent.value.config.endTime) {
+    delete editingEvent.value.config.endTime
   }
   
   try {

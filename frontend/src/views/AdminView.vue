@@ -52,11 +52,18 @@ const createEvent = async () => {
     delete eventData.config.optionsText
   }
   
-  // Remove empty time fields
-  if (!eventData.config.startTime) {
+  // Convert datetime-local to ISO format and remove if empty
+  if (eventData.config.startTime) {
+    // datetime-local format: "2025-12-07T10:00"
+    // Convert to ISO 8601: "2025-12-07T10:00:00Z"
+    eventData.config.startTime = new Date(eventData.config.startTime).toISOString()
+  } else {
     delete eventData.config.startTime
   }
-  if (!eventData.config.endTime) {
+  
+  if (eventData.config.endTime) {
+    eventData.config.endTime = new Date(eventData.config.endTime).toISOString()
+  } else {
     delete eventData.config.endTime
   }
   
@@ -92,26 +99,41 @@ const openEditModal = (event) => {
 }
 
 const updateEvent = async () => {
+  // Create a copy to avoid mutating the original
+  const eventData = JSON.parse(JSON.stringify(editingEvent.value))
+  
   // Process options for VOTE
-  if (editingEvent.value.type === 'VOTE') {
-    editingEvent.value.config.options = editingEvent.value.config.optionsText.split('\n').filter(o => o.trim())
+  if (eventData.type === 'VOTE') {
+    eventData.config.options = eventData.config.optionsText.split('\n').filter(o => o.trim())
+    delete eventData.config.optionsText
   }
   
-  // Remove empty time fields
-  if (!editingEvent.value.config.startTime) {
-    delete editingEvent.value.config.startTime
+  // Convert datetime-local to ISO format and remove if empty
+  if (eventData.config.startTime) {
+    eventData.config.startTime = new Date(eventData.config.startTime).toISOString()
+  } else {
+    delete eventData.config.startTime
   }
-  if (!editingEvent.value.config.endTime) {
-    delete editingEvent.value.config.endTime
+  
+  if (eventData.config.endTime) {
+    eventData.config.endTime = new Date(eventData.config.endTime).toISOString()
+  } else {
+    delete eventData.config.endTime
+  }
+  
+  // Remove optionsText for non-VOTE types
+  if (eventData.type !== 'VOTE' && eventData.config.optionsText !== undefined) {
+    delete eventData.config.optionsText
   }
   
   try {
-    await eventStore.updateEvent(editingEvent.value.eventId, editingEvent.value)
+    await eventStore.updateEvent(eventData.eventId, eventData)
     showEditModal.value = false
     editingEvent.value = null
     showToast('Event updated successfully!')
   } catch (e) {
-    showToast('Failed to update event')
+    console.error('Update event error:', e)
+    showToast('Failed to update event: ' + (e.response?.data?.error || e.message))
   }
 }
 

@@ -25,6 +25,14 @@ export const useAuthStore = defineStore('auth', {
                     const idToken = liff.getIDToken()
                     console.log('ID Token obtained:', idToken ? 'YES' : 'NO')
                     console.log('ID Token length:', idToken ? idToken.length : 0)
+
+                    if (!idToken) {
+                        console.warn('ID Token is empty! Forcing re-login...')
+                        liff.logout()
+                        liff.login()
+                        return
+                    }
+
                     await this.loginBackend(idToken)
                 } else {
                     console.log('User not logged in, redirecting to LINE login...')

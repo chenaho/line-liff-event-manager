@@ -69,6 +69,26 @@ func (h *EventHandler) UpdateEventStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "updated"})
 }
 
+func (h *EventHandler) UpdateEvent(c *gin.Context) {
+	eventID := c.Param("id")
+	var event models.Event
+	if err := c.ShouldBindJSON(&event); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Ensure eventID matches
+	event.EventID = eventID
+
+	updatedEvent, err := h.Service.UpdateEvent(c.Request.Context(), &event)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, updatedEvent)
+}
+
 func (h *EventHandler) ListEvents(c *gin.Context) {
 	events, err := h.Service.ListEvents(c.Request.Context(), 20)
 	if err != nil {

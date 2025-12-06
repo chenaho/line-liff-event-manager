@@ -54,6 +54,26 @@ func (s *EventService) UpdateEventStatus(ctx context.Context, eventID string, is
 	return err
 }
 
+func (s *EventService) UpdateEvent(ctx context.Context, event *models.Event) (*models.Event, error) {
+	// Get existing event to preserve createdAt and createdBy
+	existingEvent, err := s.GetEvent(ctx, event.EventID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Preserve original creation metadata
+	event.CreatedAt = existingEvent.CreatedAt
+	event.CreatedBy = existingEvent.CreatedBy
+
+	// Update the event
+	_, err = s.Repo.Client.Collection("events").Doc(event.EventID).Set(ctx, event)
+	if err != nil {
+		return nil, err
+	}
+
+	return event, nil
+}
+
 func (s *EventService) ListEvents(ctx context.Context, limit int) ([]*models.Event, error) {
 	iter := s.Repo.Client.Collection("events").OrderBy("createdAt", firestore.Desc).Limit(limit).Documents(ctx)
 	// Initialize as empty slice instead of nil to return [] instead of null in JSON

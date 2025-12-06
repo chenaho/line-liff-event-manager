@@ -79,6 +79,7 @@ func main() {
 	apiGroup.Use(api.AuthMiddleware())
 	{
 		apiGroup.POST("/events", api.AdminMiddleware(), eventHandler.CreateEvent)
+		apiGroup.PUT("/events/:id", api.AdminMiddleware(), eventHandler.UpdateEvent)
 		apiGroup.PUT("/events/:id/status", api.AdminMiddleware(), eventHandler.UpdateEventStatus)
 		apiGroup.GET("/events", api.AdminMiddleware(), eventHandler.ListEvents) // Admin list
 

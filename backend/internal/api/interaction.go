@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 
 	"event-manager/internal/models"
@@ -26,11 +27,14 @@ func (h *InteractionHandler) HandleAction(c *gin.Context) {
 	eventID := c.Param("id")
 	var req ActionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("[ACTION] Binding error: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	uid := c.GetString("uid")
+	log.Printf("[ACTION] Event: %s, Type: %s, User: %s, Payload: %+v", eventID, req.Type, uid, req.Payload)
+
 	// We might want to fetch user display name here or trust frontend payload?
 	// Secure way: fetch user from DB.
 	// For Vibe Coding, let's assume we fetch it or pass it.
@@ -64,11 +68,15 @@ func (h *InteractionHandler) HandleAction(c *gin.Context) {
 		interaction.Content = val
 	}
 
+	log.Printf("[ACTION] Constructed interaction: %+v", interaction)
+
 	if err := h.Service.HandleAction(c.Request.Context(), eventID, &interaction); err != nil {
+		log.Printf("[ACTION] HandleAction failed: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
+	log.Printf("[ACTION] Action successful")
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 

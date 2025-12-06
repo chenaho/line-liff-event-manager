@@ -11,7 +11,6 @@ npm-debug.log
 
 # Go
 backend/main
-backend/go.sum
 # Keep go.sum usually, but sometimes people ignore it. Best practice is to keep it.
 # Let's keep go.sum.
 # Binaries

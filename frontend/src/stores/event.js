@@ -42,6 +42,23 @@ export const useEventStore = defineStore('event', {
                 this.loading = false
             }
         },
+        async updateEvent(eventId, eventData) {
+            this.loading = true
+            try {
+                const response = await axios.put(`/api/events/${eventId}`, eventData)
+                const index = this.events.findIndex(e => e.eventId === eventId)
+                if (index !== -1) {
+                    this.events[index] = response.data
+                }
+                return response.data
+            } catch (err) {
+                this.error = 'Update Event Failed: ' + err.message
+                console.error(err)
+                throw err
+            } finally {
+                this.loading = false
+            }
+        },
         async updateEventStatus(eventId, isActive) {
             try {
                 await axios.put(`/api/events/${eventId}/status`, { isActive })

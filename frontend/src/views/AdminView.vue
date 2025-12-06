@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useEventStore } from '../stores/event'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/useToast'
@@ -10,6 +10,9 @@ const authStore = useAuthStore()
 const { showToast } = useToast()
 
 const showCreateModal = ref(false)
+const showEditModal = ref(false)
+const editingEvent = ref(null)
+
 const newEvent = ref({
   title: '',
   type: 'VOTE',
@@ -27,7 +30,11 @@ const newEvent = ref({
     
     // MEMO defaults
     maxCommentsPerUser: 3,
-    allowReaction: true
+    allowReaction: true,
+    
+    // Time range (optional)
+    startTime: '',
+    endTime: ''
   }
 })
 
@@ -47,9 +54,38 @@ const createEvent = async () => {
     // Reset form
     newEvent.value.title = ''
     newEvent.value.config.optionsText = ''
+    newEvent.value.config.startTime = ''
+    newEvent.value.config.endTime = ''
     showToast('Event created successfully!')
   } catch (e) {
     showToast('Failed to create event')
+  }
+}
+
+const openEditModal = (event) => {
+  editingEvent.value = {
+    ...event,
+    config: {
+      ...event.config,
+      optionsText: event.config.options?.join('\n') || ''
+    }
+  }
+  showEditModal.value = true
+}
+
+const updateEvent = async () => {
+  // Process options for VOTE
+  if (editingEvent.value.type === 'VOTE') {
+    editingEvent.value.config.options = editingEvent.value.config.optionsText.split('\n').filter(o => o.trim())
+  }
+  
+  try {
+    await eventStore.updateEvent(editingEvent.value.eventId, editingEvent.value)
+    showEditModal.value = false
+    editingEvent.value = null
+    showToast('Event updated successfully!')
+  } catch (e) {
+    showToast('Failed to update event')
   }
 }
 
@@ -72,6 +108,32 @@ const getTypeBadgeClass = (type) => {
     'MEMO': 'bg-purple-100 text-purple-800'
   }
   return classes[type] || 'bg-gray-100 text-gray-800'
+}
+
+const isEventActive = (event) => {
+  if (!event.config.startTime && !event.config.endTime) {
+    return event.isActive // No time restrictions
+  }
+  
+  const now = new Date()
+  const start = event.config.startTime ? new Date(event.config.startTime) : null
+  const end = event.config.endTime ? new Date(event.config.endTime) : null
+  
+  if (start && now < start) return false
+  if (end && now > end) return false
+  
+  return event.isActive
+}
+
+const formatDateTime = (dateTimeString) => {
+  if (!dateTimeString) return ''
+  const date = new Date(dateTimeString)
+  return date.toLocaleString('zh-TW', { 
+    month: '2-digit', 
+    day: '2-digit', 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  })
 }
 </script>
 
@@ -105,39 +167,75 @@ const getTypeBadgeClass = (type) => {
       <div 
         v-for="event in eventStore.events" 
         :key="event.eventId" 
-        class="bg-white p-4 rounded-xl shadow-md border border-gray-200 flex justify-between items-center hover:shadow-lg transition-shadow"
+        class="bg-white p-4 rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition-shadow"
       >
-        <div>
-          <div class="flex items-center gap-2">
-            <span 
-              class="px-2 py-1 text-xs font-bold rounded" 
-              :class="getTypeBadgeClass(event.type)"
-            >
-              {{ event.type }}
-            </span>
-            <h2 class="text-xl font-semibold text-gray-800">{{ event.title }}</h2>
+        <div class="flex justify-between items-start">
+          <div class="flex-1">
+            <div class="flex items-center gap-2">
+              <span 
+                class="px-2 py-1 text-xs font-bold rounded" 
+                :class="getTypeBadgeClass(event.type)"
+              >
+                {{ event.type }}
+              </span>
+              <h2 class="text-xl font-semibold text-gray-800">{{ event.title }}</h2>
+            </div>
+            
+            <!-- Time Range Display -->
+            <div v-if="event.config.startTime || event.config.endTime" class="mt-2 text-sm text-gray-600">
+              <i class="fas fa-clock mr-1"></i>
+              <span v-if="event.config.startTime">{{ formatDateTime(event.config.startTime) }}</span>
+              <span v-if="event.config.startTime && event.config.endTime"> - </span>
+              <span v-if="event.config.endTime">{{ formatDateTime(event.config.endTime) }}</span>
+            </div>
+            
+            <!-- Status Indicator -->
+            <div class="mt-2 flex items-center gap-2">
+              <span 
+                class="inline-flex items-center px-2 py-1 text-xs font-medium rounded"
+                :class="isEventActive(event) 
+                  ? 'bg-green-100 text-green-700' 
+                  : 'bg-gray-100 text-gray-700'"
+              >
+                <span 
+                  class="w-2 h-2 rounded-full mr-1"
+                  :class="isEventActive(event) ? 'bg-green-500' : 'bg-gray-400'"
+                ></span>
+                {{ isEventActive(event) ? '進行中' : '未開始/已結束' }}
+              </span>
+            </div>
+            
+            <p class="text-xs text-gray-400 mt-2">ID: {{ event.eventId }}</p>
           </div>
-          <p class="text-sm text-gray-500 mt-1">ID: {{ event.eventId }}</p>
-        </div>
-        
-        <div class="flex items-center gap-3">
-          <button 
-            @click="copyLink(event.eventId)" 
-            class="text-gray-600 hover:text-blue-600 transition-colors px-3 py-1 rounded hover:bg-blue-50"
-          >
-            <i class="fas fa-link mr-1"></i>
-            Link
-          </button>
-          <button 
-            @click="toggleStatus(event)" 
-            class="px-3 py-1 rounded text-sm font-medium transition-colors"
-            :class="event.isActive 
-              ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-              : 'bg-red-100 text-red-700 hover:bg-red-200'"
-          >
-            <i :class="event.isActive ? 'fas fa-check-circle' : 'fas fa-times-circle'" class="mr-1"></i>
-            {{ event.isActive ? 'Active' : 'Inactive' }}
-          </button>
+          
+          <div class="flex items-center gap-2">
+            <button 
+              @click="openEditModal(event)" 
+              class="text-gray-600 hover:text-blue-600 transition-colors px-3 py-1 rounded hover:bg-blue-50"
+              title="編輯活動"
+            >
+              <i class="fas fa-edit mr-1"></i>
+              Edit
+            </button>
+            <button 
+              @click="copyLink(event.eventId)" 
+              class="text-gray-600 hover:text-blue-600 transition-colors px-3 py-1 rounded hover:bg-blue-50"
+              title="複製連結"
+            >
+              <i class="fas fa-link mr-1"></i>
+              Link
+            </button>
+            <button 
+              @click="toggleStatus(event)" 
+              class="px-3 py-1 rounded text-sm font-medium transition-colors"
+              :class="event.isActive 
+                ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                : 'bg-red-100 text-red-700 hover:bg-red-200'"
+            >
+              <i :class="event.isActive ? 'fas fa-check-circle' : 'fas fa-times-circle'" class="mr-1"></i>
+              {{ event.isActive ? 'Active' : 'Inactive' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -175,6 +273,36 @@ const getTypeBadgeClass = (type) => {
               <option value="LINEUP">Line Up</option>
               <option value="MEMO">Memo</option>
             </select>
+          </div>
+
+          <!-- Time Range (Optional) -->
+          <div class="border-t pt-4 space-y-3">
+            <label class="block text-sm font-medium text-gray-700">
+              <i class="fas fa-clock mr-1"></i>
+              活動時間範圍 (選填)
+            </label>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">開始時間</label>
+                <input 
+                  v-model="newEvent.config.startTime" 
+                  type="datetime-local" 
+                  class="w-full border border-gray-300 rounded-lg shadow-sm p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">結束時間</label>
+                <input 
+                  v-model="newEvent.config.endTime" 
+                  type="datetime-local" 
+                  class="w-full border border-gray-300 rounded-lg shadow-sm p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+              </div>
+            </div>
+            <p class="text-xs text-gray-500">
+              <i class="fas fa-info-circle mr-1"></i>
+              如果不設定時間，活動將沒有時間限制
+            </p>
           </div>
 
           <!-- Type Specific Config -->
@@ -240,6 +368,117 @@ const getTypeBadgeClass = (type) => {
             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
           >
             Create
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div 
+      v-if="showEditModal && editingEvent" 
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      @click.self="showEditModal = false"
+    >
+      <div class="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl fade-in">
+        <h2 class="text-2xl font-bold mb-4 text-gray-800">
+          <i class="fas fa-edit mr-2 text-blue-600"></i>
+          Edit Event
+        </h2>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+            <input 
+              v-model="editingEvent.title" 
+              type="text" 
+              class="w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+            <select 
+              v-model="editingEvent.type" 
+              class="w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled
+            >
+              <option value="VOTE">Vote</option>
+              <option value="LINEUP">Line Up</option>
+              <option value="MEMO">Memo</option>
+            </select>
+            <p class="text-xs text-gray-500 mt-1">類型無法修改</p>
+          </div>
+
+          <!-- Time Range -->
+          <div class="border-t pt-4 space-y-3">
+            <label class="block text-sm font-medium text-gray-700">
+              <i class="fas fa-clock mr-1"></i>
+              活動時間範圍 (選填)
+            </label>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">開始時間</label>
+                <input 
+                  v-model="editingEvent.config.startTime" 
+                  type="datetime-local" 
+                  class="w-full border border-gray-300 rounded-lg shadow-sm p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">結束時間</label>
+                <input 
+                  v-model="editingEvent.config.endTime" 
+                  type="datetime-local" 
+                  class="w-full border border-gray-300 rounded-lg shadow-sm p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- VOTE Config -->
+          <div v-if="editingEvent.type === 'VOTE'" class="space-y-2 border-t pt-4">
+            <label class="block text-sm font-medium text-gray-700">Options (One per line)</label>
+            <textarea 
+              v-model="editingEvent.config.optionsText" 
+              rows="4" 
+              class="w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            ></textarea>
+          </div>
+
+          <!-- LINEUP Config -->
+          <div v-if="editingEvent.type === 'LINEUP'" class="space-y-3 border-t pt-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">最大參與人數</label>
+              <input 
+                type="number" 
+                v-model.number="editingEvent.config.maxParticipants" 
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">每人報名上限 (0=無限制)</label>
+              <input 
+                type="number" 
+                v-model.number="editingEvent.config.maxCountPerUser" 
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                min="0"
+              >
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 flex justify-end gap-3">
+          <button 
+            @click="showEditModal = false" 
+            class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            @click="updateEvent" 
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+          >
+            Update
           </button>
         </div>
       </div>

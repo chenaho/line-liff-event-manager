@@ -127,28 +127,27 @@ func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, a
 				return errors.New("not registered")
 			}
 
-			// IMPORTANT: Read the record status BEFORE deleting it
+			// IMPORTANT: Read the record status BEFORE updating it
 			// to avoid "read after write in transaction" error
 			var oldRecord models.Interaction
 			recordDoc.DataTo(&oldRecord)
 
-			// Delete record
-			if err := tx.Delete(recordRef); err != nil {
+			// Soft delete: Mark as CANCELLED instead of deleting
+			// This preserves history and avoids transaction read-after-write issues
+			now := time.Now()
+			updates := []firestore.Update{
+				{Path: "status", Value: "CANCELLED"},
+				{Path: "cancelledAt", Value: now},
+			}
+
+			if err := tx.Update(recordRef, updates); err != nil {
 				return err
 			}
 
-			// If user was SUCCESS, we might need to promote someone from WAITLIST.
-			// Spec: "User A (SUCCESS) cancel -> System auto promote Waitlist #1 (User B) to SUCCESS"
+			// If user was SUCCESS, we need to promote someone from WAITLIST
 			if oldRecord.Status == "SUCCESS" {
 				// Find first waitlist candidate
-				// We need to query again or use the snapshot we could have taken.
-				// Since we didn't take snapshot of all records above (only if +1), we need to query now.
-				// But we can't do arbitrary query in transaction easily if not ancestor.
-				// Subcollection query IS ancestor query.
-
-				// We need to find the earliest WAITLIST record.
-				// Firestore transaction queries are tricky.
-				// Let's try to get all records again (safe for small events).
+				// Read all records to find waitlist (this is safe because we haven't written yet)
 				recordsSnap, err := tx.Documents(eventRef.Collection("records")).GetAll()
 				if err != nil {
 					return err

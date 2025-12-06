@@ -20,9 +20,10 @@ type Interaction struct {
 	SelectedOptions []string `json:"selectedOptions,omitempty" firestore:"selectedOptions,omitempty"`
 
 	// LINEUP
-	Count  int    `json:"count,omitempty" firestore:"count,omitempty"`   // 1 or -1
-	Status string `json:"status,omitempty" firestore:"status,omitempty"` // SUCCESS | WAITLIST
-	Note   string `json:"note,omitempty" firestore:"note,omitempty"`
+	Count       int        `json:"count,omitempty" firestore:"count,omitempty"`   // 1 or -1
+	Status      string     `json:"status,omitempty" firestore:"status,omitempty"` // SUCCESS | WAITLIST | CANCELLED
+	Note        string     `json:"note,omitempty" firestore:"note,omitempty"`
+	CancelledAt *time.Time `json:"cancelledAt,omitempty" firestore:"cancelledAt,omitempty"` // Timestamp when cancelled (soft delete)
 
 	// MEMO
 	Content   string   `json:"content,omitempty" firestore:"content,omitempty"`

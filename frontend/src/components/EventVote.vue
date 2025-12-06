@@ -42,7 +42,8 @@ const submitVote = async () => {
   
   try {
     await eventStore.submitAction(props.event.eventId, 'VOTE', {
-      selectedOptions: selected.value
+      selectedOptions: selected.value,
+      userDisplayName: authStore.user?.lineDisplayName
     })
     showToast('投票成功！')
   } catch (e) {

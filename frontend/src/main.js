@@ -4,10 +4,10 @@ import './style.css'
 import App from './App.vue'
 import router from './router'
 import axios from 'axios'
-import VConsole from 'vconsole'
+// import VConsole from 'vconsole'
 
-// Initialize vConsole for mobile debugging
-const vConsole = new VConsole()
+// Initialize vConsole for debugging (disabled in production)
+// const vConsole = new VConsole()
 
 // Log environment variables for debugging
 console.log('=== Environment Variables ===')

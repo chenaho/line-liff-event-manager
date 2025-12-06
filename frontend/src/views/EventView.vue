@@ -39,6 +39,17 @@ const getTypeBadgeClass = (type) => {
   }
   return classes[type] || 'bg-gray-100 text-gray-800'
 }
+
+const formatDateTime = (dateTimeString) => {
+  if (!dateTimeString) return ''
+  const date = new Date(dateTimeString)
+  return date.toLocaleString('zh-TW', { 
+    month: '2-digit', 
+    day: '2-digit', 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  })
+}
 </script>
 
 <template>
@@ -59,6 +70,14 @@ const getTypeBadgeClass = (type) => {
         >
           CLOSED
         </span>
+      </div>
+      
+      <!-- Time Range Display -->
+      <div v-if="event.config.startTime || event.config.endTime" class="mt-2 text-sm text-gray-600">
+        <i class="fas fa-clock mr-1"></i>
+        <span v-if="event.config.startTime">{{ formatDateTime(event.config.startTime) }}</span>
+        <span v-if="event.config.startTime && event.config.endTime"> - </span>
+        <span v-if="event.config.endTime">{{ formatDateTime(event.config.endTime) }}</span>
       </div>
     </div>
 

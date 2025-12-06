@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -94,8 +95,13 @@ func (s *AuthService) Login(ctx context.Context, idToken string) (string, *model
 			}
 			// Check Admin Whitelist
 			adminList := os.Getenv("ADMIN_LIST")
+			log.Printf("[NEW USER] Checking ADMIN_LIST for user: %s", lineProfile.Sub)
+			log.Printf("[NEW USER] ADMIN_LIST: %s", adminList)
 			if strings.Contains(adminList, lineProfile.Sub) {
 				user.Role = "admin"
+				log.Printf("[NEW USER] User %s assigned role: admin", lineProfile.Sub)
+			} else {
+				log.Printf("[NEW USER] User %s assigned role: user", lineProfile.Sub)
 			}
 
 			_, err = userRef.Set(ctx, user)
@@ -108,12 +114,23 @@ func (s *AuthService) Login(ctx context.Context, idToken string) (string, *model
 	} else {
 		// Update existing user info (optional, e.g. if name/picture changed)
 		doc.DataTo(&user)
+
+		// Re-check admin role from ADMIN_LIST on every login
+		adminList := os.Getenv("ADMIN_LIST")
+		log.Printf("[EXISTING USER] Checking ADMIN_LIST for user: %s", lineProfile.Sub)
+		log.Printf("[EXISTING USER] ADMIN_LIST: %s", adminList)
+		log.Printf("[EXISTING USER] Current role in DB: %s", user.Role)
+		newRole := "user"
+		if strings.Contains(adminList, lineProfile.Sub) {
+			newRole = "admin"
+		}
+		log.Printf("[EXISTING USER] New role assigned: %s", newRole)
+
 		updates := []firestore.Update{
 			{Path: "lineDisplayName", Value: lineProfile.Name},
 			{Path: "pictureUrl", Value: lineProfile.Picture},
+			{Path: "role", Value: newRole},
 		}
-		// Re-check admin role if needed, or keep existing.
-		// Let's keep existing role unless we want to force update from env.
 
 		_, err = userRef.Update(ctx, updates)
 		if err != nil {
@@ -122,6 +139,7 @@ func (s *AuthService) Login(ctx context.Context, idToken string) (string, *model
 		// Update local struct
 		user.LineDisplayName = lineProfile.Name
 		user.PictureURL = lineProfile.Picture
+		user.Role = newRole
 	}
 
 	// 3. Generate JWT

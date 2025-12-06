@@ -90,6 +90,6 @@ jobs:
           echo "GO_ENV=production" >> /home/chenaho/EventManager/backend/.env
           echo "FIREBASE_CREDENTIALS=/home/chenaho/EventManager/firebase-key.json" >> /home/chenaho/EventManager/backend/.env
           
-          docker-compose down
-          docker-compose up -d --build
+          docker compose down
+          docker compose up -d --build
 

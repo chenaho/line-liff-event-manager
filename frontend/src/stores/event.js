@@ -95,6 +95,17 @@ export const useEventStore = defineStore('event', {
                 throw err
             }
         },
+        async updateRegistrationNote(eventId, recordId, note) {
+            try {
+                await axios.patch(`/api/events/${eventId}/records/${recordId}/note`, { note })
+                // Refresh status after update
+                await this.fetchEventStatus(eventId)
+            } catch (err) {
+                this.error = 'Update Note Failed: ' + err.message
+                console.error(err)
+                throw err
+            }
+        },
         async fetchEventStatus(eventId) {
             try {
                 const response = await axios.get(`/api/events/${eventId}/status`)

@@ -119,10 +119,53 @@ const handleCancel = async () => {
       count: -1,
       userDisplayName: authStore.user?.lineDisplayName
     })
-    showToast('已取消一筆報名')
+    showToast('取消成功！')
   } catch (e) {
     showToast('取消失敗: ' + e.message)
   }
+}
+
+// Note editing
+const editingNote = ref(false)
+const editingNoteValue = ref('')
+const editingRecordId = ref(null)
+
+const openNoteEditor = (record) => {
+  if (!record.isMe) return // Only allow editing own notes
+  
+  // Find the actual record with ID
+  const fullRecord = props.status.records.find(r => 
+    r.userId === record.userId && 
+    r.timestamp === record.timestamp &&
+    r.status !== 'CANCELLED'
+  )
+  
+  if (fullRecord) {
+    editingRecordId.value = fullRecord.id
+    editingNoteValue.value = record.note || ''
+    editingNote.value = true
+  }
+}
+
+const saveNote = async () => {
+  try {
+    // Update note via API
+    await eventStore.updateRegistrationNote(
+      props.event.eventId, 
+      editingRecordId.value, 
+      editingNoteValue.value
+    )
+    showToast('備註已更新！')
+    editingNote.value = false
+  } catch (e) {
+    showToast('更新失敗: ' + e.message)
+  }
+}
+
+const cancelNoteEdit = () => {
+  editingNote.value = false
+  editingNoteValue.value = ''
+  editingRecordId.value = null
 }
 </script>
 
@@ -213,8 +256,12 @@ const handleCancel = async () => {
         <div 
           v-for="(participant, index) in participants" 
           :key="index"
+          @click="openNoteEditor(participant)"
           class="px-4 py-3 hover:bg-gray-50 transition-colors"
-          :class="participant.isMe ? 'bg-blue-50' : ''"
+          :class="[
+            participant.isMe ? 'bg-blue-50 cursor-pointer' : '',
+            participant.isMe ? 'hover:bg-blue-100' : ''
+          ]"
         >
           <div class="flex items-center gap-3">
             <span class="text-sm font-bold text-gray-400 w-6">{{ index + 1 }}</span>
@@ -250,8 +297,12 @@ const handleCancel = async () => {
         <div 
           v-for="(person, index) in waitlist" 
           :key="index"
+          @click="openNoteEditor(person)"
           class="px-4 py-3 hover:bg-gray-50 transition-colors"
-          :class="person.isMe ? 'bg-orange-50' : ''"
+          :class="[
+            person.isMe ? 'bg-orange-50 cursor-pointer' : '',
+            person.isMe ? 'hover:bg-orange-100' : ''
+          ]"
         >
           <div class="flex items-center gap-3">
             <span class="text-sm font-bold text-gray-400 w-6">{{ index + 1 }}</span>
@@ -273,6 +324,46 @@ const handleCancel = async () => {
             </div>
             <span class="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">候補</span>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Note Modal -->
+    <div 
+      v-if="editingNote"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      @click.self="cancelNoteEdit"
+    >
+      <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">
+          <i class="fas fa-edit mr-2 text-blue-600"></i>
+          編輯報名備註
+        </h3>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">備註內容</label>
+          <input 
+            v-model="editingNoteValue"
+            type="text"
+            placeholder="例如：幫朋友報名、攜帶裝備等"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            @keyup.enter="saveNote"
+          >
+        </div>
+
+        <div class="flex gap-3">
+          <button 
+            @click="cancelNoteEdit"
+            class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            取消
+          </button>
+          <button 
+            @click="saveNote"
+            class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            儲存
+          </button>
         </div>
       </div>
     </div>

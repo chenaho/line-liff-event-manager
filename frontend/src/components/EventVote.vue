@@ -34,7 +34,26 @@ watch(() => props.status, () => {
   }
 }, { deep: true })
 
+// Check if event is within time range
+const isEventActive = computed(() => {
+  if (!props.event.isActive) return false
+  
+  const now = new Date()
+  const startTime = props.event.config.startTime ? new Date(props.event.config.startTime) : null
+  const endTime = props.event.config.endTime ? new Date(props.event.config.endTime) : null
+  
+  if (startTime && now < startTime) return false
+  if (endTime && now > endTime) return false
+  
+  return true
+})
+
 const submitVote = async () => {
+  if (!isEventActive.value) {
+    showToast('活動已關閉或不在開放時間內')
+    return
+  }
+  
   if (selected.value.length === 0) {
     showToast('請至少選擇一個選項')
     return
@@ -212,8 +231,9 @@ const toggleOption = (option) => {
 
     <!-- Submit Button -->
     <button 
-      @click="submitVote" 
-      class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition-transform"
+      @click="submitVote"
+      :disabled="!isEventActive"
+      class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {{ myVote ? '更新投票' : '提交投票' }}
     </button>

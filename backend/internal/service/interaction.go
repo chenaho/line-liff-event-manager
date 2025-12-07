@@ -257,3 +257,30 @@ func (s *InteractionService) GetEventStatus(ctx context.Context, eventID string)
 	result["records"] = list
 	return result, nil
 }
+
+func (s *InteractionService) UpdateRegistrationNote(ctx context.Context, eventID, recordID, userID, note string) error {
+	// Get the record
+	recordRef := s.Repo.Client.Collection("events").Doc(eventID).Collection("records").Doc(recordID)
+
+	return s.Repo.Client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		doc, err := tx.Get(recordRef)
+		if err != nil {
+			return errors.New("record not found")
+		}
+
+		var record models.Interaction
+		if err := doc.DataTo(&record); err != nil {
+			return err
+		}
+
+		// Verify user owns this record
+		if record.UserID != userID {
+			return errors.New("unauthorized: can only edit own registration")
+		}
+
+		// Update note
+		return tx.Update(recordRef, []firestore.Update{
+			{Path: "note", Value: note},
+		})
+	})
+}

@@ -35,19 +35,12 @@ func (h *InteractionHandler) HandleAction(c *gin.Context) {
 	uid := c.GetString("uid")
 	log.Printf("[ACTION] Event: %s, Type: %s, User: %s, Payload: %+v", eventID, req.Type, uid, req.Payload)
 
-	// We might want to fetch user display name here or trust frontend payload?
-	// Secure way: fetch user from DB.
-	// For Vibe Coding, let's assume we fetch it or pass it.
-	// The Interaction model has UserDisplayName.
-	// Let's construct Interaction model from payload.
-
 	interaction := models.Interaction{
 		UserID: uid,
 		Type:   req.Type,
 	}
 
 	// Extract payload
-	// This is a bit manual mapping.
 	if val, ok := req.Payload["userDisplayName"].(string); ok {
 		interaction.UserDisplayName = val
 	}
@@ -77,6 +70,34 @@ func (h *InteractionHandler) HandleAction(c *gin.Context) {
 	}
 
 	log.Printf("[ACTION] Action successful")
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func (h *InteractionHandler) UpdateRegistrationNote(c *gin.Context) {
+	eventID := c.Param("id")
+	recordID := c.Param("recordId")
+
+	var req struct {
+		Note string `json:"note"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get user ID from context
+	uid := c.GetString("uid")
+	if uid == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if err := h.Service.UpdateRegistrationNote(c.Request.Context(), eventID, recordID, uid, req.Note); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 

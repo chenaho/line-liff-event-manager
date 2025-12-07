@@ -61,6 +61,7 @@ const participants = computed(() => {
     .filter(r => r.type === 'LINEUP' && r.status === 'SUCCESS')
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)) // Sort by timestamp
     .map(r => ({
+      id: r.id, // Add record ID
       userId: r.userId,
       displayName: r.userDisplayName || 'Unknown',
       note: r.note || '',
@@ -76,6 +77,7 @@ const waitlist = computed(() => {
     .filter(r => r.type === 'LINEUP' && r.status === 'WAITLIST')
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
     .map(r => ({
+      id: r.id, // Add record ID
       userId: r.userId,
       displayName: r.userDisplayName || 'Unknown',
       note: r.note || '',
@@ -133,15 +135,8 @@ const editingRecordId = ref(null)
 const openNoteEditor = (record) => {
   if (!record.isMe) return // Only allow editing own notes
   
-  // Find the actual record with ID
-  const fullRecord = props.status.records.find(r => 
-    r.userId === record.userId && 
-    r.timestamp === record.timestamp &&
-    r.status !== 'CANCELLED'
-  )
-  
-  if (fullRecord) {
-    editingRecordId.value = fullRecord.id
+  if (record.id) {
+    editingRecordId.value = record.id
     editingNoteValue.value = record.note || ''
     editingNote.value = true
   }

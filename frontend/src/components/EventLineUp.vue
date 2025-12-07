@@ -130,8 +130,11 @@ const handleCancel = async () => {
             <div class="text-xs opacity-80">/ {{ event.config.maxParticipants }}</div>
             <div class="text-xs opacity-80">目前人數</div>
           </div>
-          <div v-if="waitlistCount > 0" class="text-center">
+          <div v-if="waitlistCount > 0 || event.config.waitlistLimit > 0" class="text-center">
             <div class="text-2xl font-bold">{{ waitlistCount }}</div>
+            <div class="text-xs opacity-80" v-if="event.config.waitlistLimit > 0">
+              / {{ event.config.waitlistLimit }}
+            </div>
             <div class="text-xs opacity-80">候補名額</div>
           </div>
         </div>

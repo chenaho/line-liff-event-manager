@@ -102,6 +102,23 @@ func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, a
 
 			// Determine status based on capacity
 			if totalActiveCount >= event.Config.MaxParticipants {
+				// Event is full, check waitlist
+				if event.Config.WaitlistLimit > 0 {
+					// Count current waitlist
+					waitlistCount := 0
+					for _, doc := range recordsSnap {
+						var rec models.Interaction
+						doc.DataTo(&rec)
+						if rec.Type == models.InteractionTypeLineUp && rec.Status == "WAITLIST" {
+							waitlistCount++
+						}
+					}
+
+					// Check if waitlist is full
+					if waitlistCount >= event.Config.WaitlistLimit {
+						return errors.New("waitlist is full")
+					}
+				}
 				action.Status = "WAITLIST"
 			} else {
 				action.Status = "SUCCESS"

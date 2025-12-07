@@ -87,16 +87,33 @@ const createEvent = async () => {
   }
 }
 
+
 const openEditModal = (event) => {
+  // Convert ISO datetime to datetime-local format (YYYY-MM-DDTHH:mm)
+  const formatForInput = (isoString) => {
+    if (!isoString) return ''
+    const date = new Date(isoString)
+    // Get local time in YYYY-MM-DDTHH:mm format
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+
   editingEvent.value = {
     ...event,
     config: {
       ...event.config,
-      optionsText: event.config.options?.join('\n') || ''
+      optionsText: event.config.options?.join('\n') || '',
+      startTime: formatForInput(event.config.startTime),
+      endTime: formatForInput(event.config.endTime)
     }
   }
   showEditModal.value = true
 }
+
 
 const updateEvent = async () => {
   // Create a copy to avoid mutating the original
@@ -508,6 +525,15 @@ const formatDateTime = (dateTimeString) => {
               <input 
                 type="number" 
                 v-model.number="editingEvent.config.maxCountPerUser" 
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                min="0"
+              >
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">候補名額上限</label>
+              <input 
+                type="number" 
+                v-model.number="editingEvent.config.waitlistLimit" 
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 min="0"
               >

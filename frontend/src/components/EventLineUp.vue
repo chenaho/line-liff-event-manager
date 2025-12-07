@@ -39,6 +39,18 @@ const waitlistCount = computed(() => {
 })
 
 const isFull = computed(() => successCount.value >= props.event.config.maxParticipants)
+
+// Check if registration is completely closed (event full AND waitlist full)
+const isRegistrationClosed = computed(() => {
+  if (!isFull.value) return false // Event not full, can register
+  
+  // Event is full, check if waitlist has space
+  const waitlistLimit = props.event.config.waitlistLimit || 0
+  if (waitlistLimit === 0) return false // No waitlist limit, can always join waitlist
+  
+  return waitlistCount.value >= waitlistLimit // Waitlist is also full
+})
+
 const remaining = computed(() => props.event.config.maxParticipants - successCount.value)
 
 // Show individual registrations instead of grouping
@@ -178,7 +190,7 @@ const handleCancel = async () => {
       </button>
       <button 
         @click="handleRegister"
-        :disabled="!canRegisterMore || isFull"
+        :disabled="!canRegisterMore || isRegistrationClosed"
         class="bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <i class="fas fa-plus-circle mr-2"></i>

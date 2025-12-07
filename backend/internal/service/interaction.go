@@ -246,12 +246,26 @@ func (s *InteractionService) GetEventStatus(ctx context.Context, eventID string)
 	}
 
 	var result = make(map[string]interface{})
-	var list []models.Interaction
+	var list []map[string]interface{}
 
 	for _, doc := range records {
 		var rec models.Interaction
 		doc.DataTo(&rec)
-		list = append(list, rec)
+
+		// Convert to map and add document ID
+		recMap := map[string]interface{}{
+			"id":              doc.Ref.ID, // Add document ID
+			"type":            rec.Type,
+			"userId":          rec.UserID,
+			"userDisplayName": rec.UserDisplayName,
+			"timestamp":       rec.Timestamp,
+			"status":          rec.Status,
+			"selectedOptions": rec.SelectedOptions,
+			"count":           rec.Count,
+			"note":            rec.Note,
+			"content":         rec.Content,
+		}
+		list = append(list, recMap)
 	}
 
 	result["records"] = list

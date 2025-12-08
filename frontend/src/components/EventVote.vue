@@ -63,7 +63,7 @@ const submitVote = async () => {
     await eventStore.submitAction(props.event.eventId, 'VOTE', {
       selectedOptions: selected.value,
       userDisplayName: authStore.user?.lineDisplayName,
-      userPictureUrl: authStore.user?.linePictureUrl
+      userPictureUrl: authStore.user?.pictureUrl
     })
     showToast('投票成功！')
   } catch (e) {

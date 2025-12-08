@@ -108,7 +108,7 @@ const handleRegister = async () => {
     await eventStore.submitAction(props.event.eventId, 'LINEUP', {
       count: 1,
       userDisplayName: authStore.user?.lineDisplayName,
-      userPictureUrl: authStore.user?.linePictureUrl,
+      userPictureUrl: authStore.user?.pictureUrl,
       note: registrationNote.value
     })
     showToast('報名成功！')
@@ -128,7 +128,7 @@ const handleCancel = async () => {
     await eventStore.submitAction(props.event.eventId, 'LINEUP', {
       count: -1,
       userDisplayName: authStore.user?.lineDisplayName,
-      userPictureUrl: authStore.user?.linePictureUrl
+      userPictureUrl: authStore.user?.pictureUrl
     })
     showToast('取消成功！')
   } catch (e) {

@@ -62,7 +62,7 @@ const submitMemo = async () => {
     await eventStore.submitAction(props.event.eventId, 'MEMO', {
       content: content.value,
       userDisplayName: authStore.user?.lineDisplayName,
-      userPictureUrl: authStore.user?.linePictureUrl
+      userPictureUrl: authStore.user?.pictureUrl
     })
     closeDialog()
     showToast('留言已送出')

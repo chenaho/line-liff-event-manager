@@ -13,6 +13,7 @@ const (
 type Interaction struct {
 	UserID          string          `json:"userId" firestore:"userId"`
 	UserDisplayName string          `json:"userDisplayName" firestore:"userDisplayName"`
+	UserPictureUrl  string          `json:"userPictureUrl,omitempty" firestore:"userPictureUrl,omitempty"`
 	Type            InteractionType `json:"type" firestore:"type"`
 	Timestamp       time.Time       `json:"timestamp" firestore:"timestamp"`
 

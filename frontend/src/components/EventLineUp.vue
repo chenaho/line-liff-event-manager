@@ -64,6 +64,7 @@ const participants = computed(() => {
       id: r.id, // Add record ID
       userId: r.userId,
       displayName: r.userDisplayName || 'Unknown',
+      pictureUrl: r.userPictureUrl || null,
       note: r.note || '',
       timestamp: r.timestamp,
       isMe: r.userId === authStore.user?.lineUserId
@@ -80,14 +81,20 @@ const waitlist = computed(() => {
       id: r.id, // Add record ID
       userId: r.userId,
       displayName: r.userDisplayName || 'Unknown',
+      pictureUrl: r.userPictureUrl || null,
       note: r.note || '',
       timestamp: r.timestamp,
       isMe: r.userId === authStore.user?.lineUserId
     }))
 })
 
-const getAvatarUrl = (displayName) => {
-  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName)}`
+const getAvatarUrl = (person) => {
+  // Prioritize LINE pictureUrl with /small suffix
+  if (person.pictureUrl) {
+    return person.pictureUrl + '/small'
+  }
+  // Fallback to generated avatar
+  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(person.displayName)}`
 }
 
 const handleRegister = async () => {
@@ -101,6 +108,7 @@ const handleRegister = async () => {
     await eventStore.submitAction(props.event.eventId, 'LINEUP', {
       count: 1,
       userDisplayName: authStore.user?.lineDisplayName,
+      userPictureUrl: authStore.user?.linePictureUrl,
       note: registrationNote.value
     })
     showToast('報名成功！')
@@ -119,7 +127,8 @@ const handleCancel = async () => {
   try {
     await eventStore.submitAction(props.event.eventId, 'LINEUP', {
       count: -1,
-      userDisplayName: authStore.user?.lineDisplayName
+      userDisplayName: authStore.user?.lineDisplayName,
+      userPictureUrl: authStore.user?.linePictureUrl
     })
     showToast('取消成功！')
   } catch (e) {
@@ -261,7 +270,7 @@ const cancelNoteEdit = () => {
           <div class="flex items-center gap-3">
             <span class="text-sm font-bold text-gray-400 w-6">{{ index + 1 }}</span>
             <img 
-              :src="getAvatarUrl(participant.displayName)" 
+              :src="getAvatarUrl(participant)" 
               class="w-10 h-10 rounded-full bg-gray-200 border-2"
               :class="participant.isMe ? 'border-blue-500' : 'border-gray-300'"
               :alt="participant.displayName"
@@ -302,7 +311,7 @@ const cancelNoteEdit = () => {
           <div class="flex items-center gap-3">
             <span class="text-sm font-bold text-gray-400 w-6">{{ index + 1 }}</span>
             <img 
-              :src="getAvatarUrl(person.displayName)" 
+              :src="getAvatarUrl(person)" 
               class="w-10 h-10 rounded-full bg-gray-200 border-2"
               :class="person.isMe ? 'border-orange-500' : 'border-gray-300'"
               :alt="person.displayName"

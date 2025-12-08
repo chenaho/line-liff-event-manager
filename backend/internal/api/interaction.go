@@ -44,6 +44,9 @@ func (h *InteractionHandler) HandleAction(c *gin.Context) {
 	if val, ok := req.Payload["userDisplayName"].(string); ok {
 		interaction.UserDisplayName = val
 	}
+	if val, ok := req.Payload["userPictureUrl"].(string); ok {
+		interaction.UserPictureUrl = val
+	}
 	if val, ok := req.Payload["selectedOptions"].([]interface{}); ok {
 		for _, v := range val {
 			if s, ok := v.(string); ok {

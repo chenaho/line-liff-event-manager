@@ -16,11 +16,21 @@ const likedMessages = ref(new Set())
 
 const messages = computed(() => {
   if (!props.status || !props.status.records) return []
-  return props.status.records.filter(r => r.type === 'MEMO')
+  return props.status.records
+    .filter(r => r.type === 'MEMO')
+    .map(r => ({
+      ...r,
+      pictureUrl: r.userPictureUrl || null
+    }))
 })
 
-const getAvatarUrl = (displayName) => {
-  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName || 'User')}`
+const getAvatarUrl = (message) => {
+  // Prioritize LINE pictureUrl with /small suffix
+  if (message.pictureUrl) {
+    return message.pictureUrl + '/small'
+  }
+  // Fallback to generated avatar
+  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(message.userDisplayName || 'User')}`
 }
 
 const isMyMessage = (message) => {
@@ -51,7 +61,8 @@ const submitMemo = async () => {
   try {
     await eventStore.submitAction(props.event.eventId, 'MEMO', {
       content: content.value,
-      userDisplayName: authStore.user?.lineDisplayName
+      userDisplayName: authStore.user?.lineDisplayName,
+      userPictureUrl: authStore.user?.linePictureUrl
     })
     closeDialog()
     showToast('留言已送出')
@@ -98,27 +109,28 @@ onMounted(() => {
       </div>
 
       <div 
-        v-for="(msg, idx) in messages" 
-        :key="idx" 
+        v-for="msg in messages" 
+        :key="msg.timestamp"
         class="flex gap-3"
         :class="isMyMessage(msg) ? 'flex-row-reverse' : ''"
       >
         <!-- Avatar -->
         <img 
-          :src="getAvatarUrl(msg.userDisplayName)" 
+          :src="getAvatarUrl(msg)" 
           class="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0 mt-1"
+          :alt="msg.userDisplayName"
         >
         
         <!-- Message Content -->
         <div class="max-w-[75%]">
           <div class="text-xs text-gray-400 mb-1" :class="isMyMessage(msg) ? 'text-right' : ''">
-            {{ msg.userDisplayName }} • {{ formatTime(msg.timestamp) }}
+            {{ msg.userDisplayName }} · {{ formatTime(msg.timestamp) }}
           </div>
           <div 
-            class="p-3 rounded-2xl shadow-sm text-gray-700 text-sm relative border"
+            class="px-4 py-2 rounded-2xl break-words"
             :class="isMyMessage(msg) 
-              ? 'bg-purple-50 border-purple-100 rounded-tr-none' 
-              : 'bg-white border-gray-100 rounded-tl-none'"
+              ? 'bg-blue-500 text-white rounded-br-sm' 
+              : 'bg-gray-100 text-gray-800 rounded-bl-sm'"
           >
             {{ msg.content }}
           </div>
@@ -126,9 +138,9 @@ onMounted(() => {
           <!-- Like Button -->
           <div class="flex gap-2 mt-1" :class="isMyMessage(msg) ? 'justify-end' : ''">
             <button 
-              @click="toggleLike(idx)"
+              @click="toggleLike(msg.timestamp)"
               class="text-xs flex items-center gap-1 transition-all"
-              :class="likedMessages.has(idx) ? 'text-pink-500 scale-110' : 'text-gray-400 hover:text-pink-500'"
+              :class="likedMessages.has(msg.timestamp) ? 'text-pink-500 scale-110' : 'text-gray-400 hover:text-pink-500'"
             >
               <i :class="likedMessages.has(idx) ? 'fas fa-heart' : 'far fa-heart'"></i>
               <span v-if="likedMessages.has(idx)">1</span>

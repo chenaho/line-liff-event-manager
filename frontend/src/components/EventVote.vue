@@ -62,7 +62,8 @@ const submitVote = async () => {
   try {
     await eventStore.submitAction(props.event.eventId, 'VOTE', {
       selectedOptions: selected.value,
-      userDisplayName: authStore.user?.lineDisplayName
+      userDisplayName: authStore.user?.lineDisplayName,
+      userPictureUrl: authStore.user?.linePictureUrl
     })
     showToast('投票成功！')
   } catch (e) {
@@ -98,20 +99,29 @@ const getVoteCount = (option) => {
   return results.value.counts[option] || 0
 }
 
-// Get voters for specific option
-const getVoters = (option) => {
-  if (!props.status?.records) return []
-  return props.status.records
-    .filter(r => r.type === 'VOTE' && r.selectedOptions?.includes(option))
-    .map(r => ({
-      userId: r.userId,
-      displayName: r.userDisplayName || 'Unknown',
-      isMe: r.userId === authStore.user?.lineUserId
-    }))
-}
+// Get voters for each option with display names
+const getVoters = computed(() => {
+  return (option) => {
+    if (!props.status?.records) return []
+    
+    return props.status.records
+      .filter(r => r.type === 'VOTE' && r.selectedOptions?.includes(option))
+      .map(r => ({
+        userId: r.userId,
+        displayName: r.userDisplayName || 'Unknown',
+        pictureUrl: r.userPictureUrl || null,
+        isMe: r.userId === authStore.user?.lineUserId
+      }))
+  }
+})
 
-const getAvatarUrl = (displayName) => {
-  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName)}`
+const getAvatarUrl = (voter) => {
+  // Prioritize LINE pictureUrl with /small suffix
+  if (voter.pictureUrl) {
+    return voter.pictureUrl + '/small'
+  }
+  // Fallback to generated avatar
+  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(voter.displayName)}`
 }
 
 const toggleVoterList = (option) => {
@@ -216,7 +226,7 @@ const toggleOption = (option) => {
             :class="voter.isMe ? 'bg-blue-50' : 'bg-white'"
           >
             <img 
-              :src="getAvatarUrl(voter.displayName)" 
+              :src="getAvatarUrl(voter)" 
               class="w-6 h-6 rounded-full bg-gray-200"
               :alt="voter.displayName"
             >

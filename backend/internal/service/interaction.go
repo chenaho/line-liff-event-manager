@@ -258,6 +258,7 @@ func (s *InteractionService) GetEventStatus(ctx context.Context, eventID string)
 			"type":            rec.Type,
 			"userId":          rec.UserID,
 			"userDisplayName": rec.UserDisplayName,
+			"userPictureUrl":  rec.UserPictureUrl,
 			"timestamp":       rec.Timestamp,
 			"status":          rec.Status,
 			"selectedOptions": rec.SelectedOptions,

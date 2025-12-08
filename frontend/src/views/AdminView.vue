@@ -234,73 +234,73 @@ const formatDateTime = (dateTimeString) => {
         :key="event.eventId" 
         class="bg-white p-4 rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition-shadow"
       >
-        <div class="flex justify-between items-start">
-          <div class="flex-1">
-            <div class="flex items-center gap-2">
-              <span 
-                class="px-2 py-1 text-xs font-bold rounded" 
-                :class="getTypeBadgeClass(event.type)"
-              >
-                {{ event.type }}
-              </span>
-              <h2 class="text-xl font-semibold text-gray-800">{{ event.title }}</h2>
-            </div>
-            
-            <!-- Time Range Display -->
-            <div v-if="event.config.startTime || event.config.endTime" class="mt-2 text-sm text-gray-600">
-              <i class="fas fa-clock mr-1"></i>
-              <span v-if="event.config.startTime">{{ formatDateTime(event.config.startTime) }}</span>
-              <span v-if="event.config.startTime && event.config.endTime"> - </span>
-              <span v-if="event.config.endTime">{{ formatDateTime(event.config.endTime) }}</span>
-            </div>
-            
-            <!-- Status Indicator -->
-            <div class="mt-2 flex items-center gap-2">
-              <span 
-                class="inline-flex items-center px-2 py-1 text-xs font-medium rounded"
-                :class="isEventActive(event) 
-                  ? 'bg-green-100 text-green-700' 
-                  : 'bg-gray-100 text-gray-700'"
-              >
-                <span 
-                  class="w-2 h-2 rounded-full mr-1"
-                  :class="isEventActive(event) ? 'bg-green-500' : 'bg-gray-400'"
-                ></span>
-                {{ isEventActive(event) ? '進行中' : '未開始/已結束' }}
-              </span>
-            </div>
-            
-            <p class="text-xs text-gray-400 mt-2">ID: {{ event.eventId }}</p>
+        <div>
+          <div class="flex items-center gap-2">
+            <span 
+              class="px-2 py-1 text-xs font-bold rounded" 
+              :class="getTypeBadgeClass(event.type)"
+            >
+              {{ event.type }}
+            </span>
+            <h2 class="text-xl font-semibold text-gray-800">{{ event.title }}</h2>
           </div>
           
-          <div class="flex items-center gap-2">
-            <button 
-              @click="openEditModal(event)" 
-              class="text-gray-600 hover:text-blue-600 transition-colors px-3 py-1 rounded hover:bg-blue-50"
-              title="編輯活動"
-            >
-              <i class="fas fa-edit mr-1"></i>
-              Edit
-            </button>
-            <button 
-              @click="copyLink(event.eventId)" 
-              class="text-gray-600 hover:text-blue-600 transition-colors px-3 py-1 rounded hover:bg-blue-50"
-              title="複製連結"
-            >
-              <i class="fas fa-link mr-1"></i>
-              Link
-            </button>
-            <button 
-              @click="toggleStatus(event)" 
-              class="px-3 py-1 rounded text-sm font-medium transition-colors"
-              :class="event.isActive 
-                ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                : 'bg-red-100 text-red-700 hover:bg-red-200'"
-            >
-              <i :class="event.isActive ? 'fas fa-check-circle' : 'fas fa-times-circle'" class="mr-1"></i>
-              {{ event.isActive ? 'Active' : 'Inactive' }}
-            </button>
+          <!-- Time Range Display -->
+          <div v-if="event.config.startTime || event.config.endTime" class="mt-2 text-sm text-gray-600">
+            <i class="fas fa-clock mr-1"></i>
+            <span v-if="event.config.startTime">{{ formatDateTime(event.config.startTime) }}</span>
+            <span v-if="event.config.startTime && event.config.endTime"> - </span>
+            <span v-if="event.config.endTime">{{ formatDateTime(event.config.endTime) }}</span>
           </div>
+          
+          <!-- Status Indicator -->
+          <div class="mt-2 flex items-center gap-2">
+            <span 
+              class="inline-flex items-center px-2 py-1 text-xs font-medium rounded"
+              :class="isEventActive(event) 
+                ? 'bg-green-100 text-green-700' 
+                : 'bg-gray-100 text-gray-700'"
+            >
+              <span 
+                class="w-2 h-2 rounded-full mr-1"
+                :class="isEventActive(event) ? 'bg-green-500' : 'bg-gray-400'"
+              ></span>
+              {{ isEventActive(event) ? '進行中' : '未開始/已結束' }}
+            </span>
+          </div>
+          
+          <p class="text-xs text-gray-400 mt-2">ID: {{ event.eventId }}</p>
+        </div>
+        
+        <!-- Action Buttons - Moved Below -->
+        <div class="mt-4 pt-3 border-t border-gray-100 flex items-center gap-2">
+          <button 
+            @click="openEditModal(event)" 
+            class="text-gray-600 hover:text-blue-600 transition-colors px-3 py-1 rounded hover:bg-blue-50"
+            title="編輯活動"
+          >
+            <i class="fas fa-edit mr-1"></i>
+            Edit
+          </button>
+          <button 
+            @click="copyLink(event.eventId)" 
+            class="text-gray-600 hover:text-blue-600 transition-colors px-3 py-1 rounded hover:bg-blue-50"
+            title="複製連結"
+          >
+            <i class="fas fa-link mr-1"></i>
+            Link
+          </button>
+          <button 
+            @click="toggleStatus(event)" 
+            :class="event.isActive 
+              ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
+              : 'text-red-600 hover:text-red-700 hover:bg-red-50'"
+            class="transition-colors px-3 py-1 rounded"
+            :title="event.isActive ? '停用活動' : '啟用活動'"
+          >
+            <i :class="event.isActive ? 'fas fa-toggle-on' : 'fas fa-toggle-off'" class="mr-1"></i>
+            {{ event.isActive ? 'Active' : 'Inactive' }}
+          </button>
         </div>
       </div>
     </div>

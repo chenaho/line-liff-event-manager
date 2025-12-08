@@ -55,7 +55,7 @@ const formatDateTime = (dateTimeString) => {
 <template>
   <div v-if="event" class="min-h-screen bg-gray-50 pb-20">
     <!-- Header -->
-    <div class="bg-white p-4 shadow-md sticky top-0 z-10">
+    <div class="bg-white p-4 shadow-md sticky top-0 z-50">
       <h1 class="text-xl font-bold text-gray-800">{{ event.title }}</h1>
       <div class="flex items-center gap-2 mt-1">
         <span 

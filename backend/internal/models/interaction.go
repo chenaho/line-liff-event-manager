@@ -28,5 +28,6 @@ type Interaction struct {
 
 	// MEMO
 	Content   string   `json:"content,omitempty" firestore:"content,omitempty"`
+	ClapCount int      `json:"clapCount,omitempty" firestore:"clapCount,omitempty"` // Clap reactions count (max 99)
 	Reactions []string `json:"reactions,omitempty" firestore:"reactions,omitempty"`
 }

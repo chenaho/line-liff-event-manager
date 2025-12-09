@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { useEventStore } from '../stores/event'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/useToast'
@@ -12,7 +12,10 @@ const { showToast } = useToast()
 const content = ref('')
 const showDialog = ref(false)
 const messagesContainer = ref(null)
-const likedMessages = ref(new Set())
+
+// Edit state
+const editingMessage = ref(null)
+const editingContent = ref('')
 
 const messages = computed(() => {
   if (!props.status || !props.status.records) return []
@@ -38,9 +41,14 @@ const isMyMessage = (message) => {
 }
 
 const formatTime = (timestamp) => {
-  if (!timestamp) return 'Just now'
   const date = new Date(timestamp)
-  return date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
+  return date.toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+const scrollToBottom = () => {
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+  }
 }
 
 const openDialog = () => {
@@ -71,23 +79,55 @@ const submitMemo = async () => {
     await nextTick()
     scrollToBottom()
   } catch (e) {
-    showToast('發送失敗')
+    console.error('Send memo error:', e)
+    showToast('發送失敗: ' + (e.response?.data?.error || e.message))
   }
 }
 
-const toggleLike = (messageId) => {
-  if (likedMessages.value.has(messageId)) {
-    likedMessages.value.delete(messageId)
-  } else {
-    likedMessages.value.add(messageId)
+// Edit message
+const openEditMessage = (message) => {
+  if (!isMyMessage(message)) return
+  editingMessage.value = message
+  editingContent.value = message.content
+}
+
+const closeEditMessage = () => {
+  editingMessage.value = null
+  editingContent.value = ''
+}
+
+const saveEditedMessage = async () => {
+  if (!editingContent.value.trim()) {
+    showToast('請輸入留言內容')
+    return
+  }
+  
+  try {
+    await eventStore.updateMemoContent(
+      props.event.eventId,
+      editingMessage.value.id,
+      editingContent.value
+    )
+    showToast('留言已更新')
+    closeEditMessage()
+  } catch (e) {
+    showToast('更新失敗: ' + (e.response?.data?.error || e.message))
   }
 }
 
-const scrollToBottom = () => {
-  if (messagesContainer.value) {
-    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+// Clap reaction
+const handleClap = async (message) => {
+  try {
+    await eventStore.incrementClapCount(props.event.eventId, message.id)
+  } catch (e) {
+    showToast('鼓掌失敗')
   }
 }
+
+// Watch messages and scroll to bottom when new message arrives
+watch(() => messages.value.length, () => {
+  nextTick(() => scrollToBottom())
+})
 
 onMounted(() => {
   scrollToBottom()
@@ -95,17 +135,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="fade-in flex flex-col h-[calc(100vh-200px)]">
-    <!-- Header Card -->
-    <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-purple-500 mb-4">
-      <h2 class="text-xl font-bold text-gray-800">{{ event.title }}</h2>
-    </div>
-
+  <div class="flex flex-col h-full">
     <!-- Messages Container -->
-    <div ref="messagesContainer" class="flex-1 overflow-y-auto space-y-4 p-2 hide-scrollbar">
+    <div 
+      ref="messagesContainer"
+      class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
+      style="max-height: 60vh;"
+    >
       <div v-if="messages.length === 0" class="text-center text-gray-400 py-8">
         <i class="fas fa-comments text-4xl mb-2"></i>
-        <p>還沒有留言，成為第一個留言的人吧！</p>
+        <p class="text-sm">尚無留言</p>
       </div>
 
       <div 
@@ -127,65 +166,111 @@ onMounted(() => {
             {{ msg.userDisplayName }} · {{ formatTime(msg.timestamp) }}
           </div>
           <div 
+            @click="openEditMessage(msg)"
             class="px-4 py-2 rounded-2xl break-words"
-            :class="isMyMessage(msg) 
-              ? 'bg-blue-500 text-white rounded-br-sm' 
-              : 'bg-gray-100 text-gray-800 rounded-bl-sm'"
+            :class="[
+              isMyMessage(msg) 
+                ? 'bg-blue-500 text-white rounded-br-sm' 
+                : 'bg-gray-100 text-gray-800 rounded-bl-sm',
+              isMyMessage(msg) ? 'cursor-pointer hover:bg-blue-600' : ''
+            ]"
           >
             {{ msg.content }}
           </div>
           
-          <!-- Like Button -->
+          <!-- Clap Button -->
           <div class="flex gap-2 mt-1" :class="isMyMessage(msg) ? 'justify-end' : ''">
             <button 
-              @click="toggleLike(msg.timestamp)"
-              class="text-xs flex items-center gap-1 transition-all"
-              :class="likedMessages.has(msg.timestamp) ? 'text-pink-500 scale-110' : 'text-gray-400 hover:text-pink-500'"
+              @click="handleClap(msg)"
+              class="text-xs flex items-center gap-1 transition-all px-2 py-1 rounded hover:bg-gray-200"
+              :class="(msg.clapCount || 0) > 0 ? 'text-orange-500' : 'text-gray-400'"
             >
-              <i :class="likedMessages.has(idx) ? 'fas fa-heart' : 'far fa-heart'"></i>
-              <span v-if="likedMessages.has(idx)">1</span>
+              <i class="fas fa-hands-clapping"></i>
+              <span v-if="(msg.clapCount || 0) > 0">{{ msg.clapCount }}</span>
             </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Floating Action Button -->
-    <div class="fixed bottom-6 right-6 z-10">
+    <!-- Input Area -->
+    <div class="p-4 bg-white border-t border-gray-200">
       <button 
         @click="openDialog"
-        class="w-14 h-14 bg-purple-600 text-white rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-purple-700 active:scale-90 transition-transform"
+        class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition-transform"
       >
-        <i class="fas fa-pen"></i>
+        <i class="fas fa-plus-circle mr-2"></i>
+        發表留言
       </button>
     </div>
 
-    <!-- Dialog Modal -->
+    <!-- New Message Dialog -->
     <div 
       v-if="showDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
       @click.self="closeDialog"
     >
-      <div class="bg-white rounded-xl w-full max-w-sm p-4 shadow-2xl transform transition-all scale-100 fade-in">
-        <h3 class="font-bold text-lg mb-2">發表留言</h3>
+      <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">
+          <i class="fas fa-comment-dots mr-2 text-blue-600"></i>
+          發表留言
+        </h3>
+        
         <textarea 
           v-model="content"
-          class="w-full border rounded-lg p-2 h-24 focus:outline-none focus:ring-2 focus:ring-purple-500" 
-          placeholder="寫下你的想法..."
-          @keydown.enter.ctrl="submitMemo"
+          placeholder="輸入您的留言..."
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+          rows="4"
         ></textarea>
-        <div class="flex justify-end gap-2 mt-4">
+
+        <div class="flex gap-3 mt-4">
           <button 
-            @click="closeDialog" 
-            class="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded transition-colors"
+            @click="closeDialog"
+            class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
           >
             取消
           </button>
           <button 
-            @click="submitMemo" 
-            class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+            @click="submitMemo"
+            class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             送出
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Message Dialog -->
+    <div 
+      v-if="editingMessage"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      @click.self="closeEditMessage"
+    >
+      <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">
+          <i class="fas fa-edit mr-2 text-blue-600"></i>
+          編輯留言
+        </h3>
+        
+        <textarea 
+          v-model="editingContent"
+          placeholder="輸入您的留言..."
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+          rows="4"
+        ></textarea>
+
+        <div class="flex gap-3 mt-4">
+          <button 
+            @click="closeEditMessage"
+            class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            取消
+          </button>
+          <button 
+            @click="saveEditedMessage"
+            class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            儲存
           </button>
         </div>
       </div>

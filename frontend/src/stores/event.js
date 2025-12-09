@@ -106,6 +106,28 @@ export const useEventStore = defineStore('event', {
                 throw err
             }
         },
+        async updateMemoContent(eventId, recordId, content) {
+            try {
+                await axios.patch(`/api/events/${eventId}/records/${recordId}/content`, { content })
+                // Refresh status after update
+                await this.fetchEventStatus(eventId)
+            } catch (err) {
+                this.error = 'Update Memo Failed: ' + err.message
+                console.error(err)
+                throw err
+            }
+        },
+        async incrementClapCount(eventId, recordId) {
+            try {
+                await axios.post(`/api/events/${eventId}/records/${recordId}/clap`)
+                // Refresh status after update
+                await this.fetchEventStatus(eventId)
+            } catch (err) {
+                this.error = 'Clap Failed: ' + err.message
+                console.error(err)
+                throw err
+            }
+        },
         async fetchEventStatus(eventId) {
             try {
                 const response = await axios.get(`/api/events/${eventId}/status`)

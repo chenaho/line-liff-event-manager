@@ -265,6 +265,7 @@ func (s *InteractionService) GetEventStatus(ctx context.Context, eventID string)
 			"count":           rec.Count,
 			"note":            rec.Note,
 			"content":         rec.Content,
+			"clapCount":       rec.ClapCount,
 		}
 		list = append(list, recMap)
 	}
@@ -296,6 +297,58 @@ func (s *InteractionService) UpdateRegistrationNote(ctx context.Context, eventID
 		// Update note
 		return tx.Update(recordRef, []firestore.Update{
 			{Path: "note", Value: note},
+		})
+	})
+}
+
+func (s *InteractionService) UpdateMemoContent(ctx context.Context, eventID, recordID, userID, content string) error {
+	recordRef := s.Repo.Client.Collection("events").Doc(eventID).Collection("records").Doc(recordID)
+
+	return s.Repo.Client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		doc, err := tx.Get(recordRef)
+		if err != nil {
+			return errors.New("record not found")
+		}
+
+		var record models.Interaction
+		if err := doc.DataTo(&record); err != nil {
+			return err
+		}
+
+		// Verify user owns this record
+		if record.UserID != userID {
+			return errors.New("unauthorized: can only edit own message")
+		}
+
+		// Update content
+		return tx.Update(recordRef, []firestore.Update{
+			{Path: "content", Value: content},
+		})
+	})
+}
+
+func (s *InteractionService) IncrementClapCount(ctx context.Context, eventID, recordID string) error {
+	recordRef := s.Repo.Client.Collection("events").Doc(eventID).Collection("records").Doc(recordID)
+
+	return s.Repo.Client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		doc, err := tx.Get(recordRef)
+		if err != nil {
+			return errors.New("record not found")
+		}
+
+		var record models.Interaction
+		if err := doc.DataTo(&record); err != nil {
+			return err
+		}
+
+		// Increment clap count (max 99)
+		newCount := record.ClapCount + 1
+		if newCount > 99 {
+			newCount = 99
+		}
+
+		return tx.Update(recordRef, []firestore.Update{
+			{Path: "clapCount", Value: newCount},
 		})
 	})
 }

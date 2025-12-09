@@ -89,6 +89,8 @@ func main() {
 		apiGroup.GET("/events/:id/status", interactionHandler.GetEventStatus)
 		apiGroup.POST("/events/:id/action", interactionHandler.HandleAction)
 		apiGroup.PATCH("/events/:id/records/:recordId/note", interactionHandler.UpdateRegistrationNote)
+		apiGroup.PATCH("/events/:id/records/:recordId/content", interactionHandler.UpdateMemoContent)
+		apiGroup.POST("/events/:id/records/:recordId/clap", interactionHandler.IncrementClapCount)
 	}
 
 	port := os.Getenv("PORT")

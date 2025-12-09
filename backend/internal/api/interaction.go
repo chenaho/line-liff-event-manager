@@ -104,6 +104,51 @@ func (h *InteractionHandler) UpdateRegistrationNote(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
+func (h *InteractionHandler) UpdateMemoContent(c *gin.Context) {
+	eventID := c.Param("id")
+	recordID := c.Param("recordId")
+
+	var req struct {
+		Content string `json:"content"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	uid := c.GetString("uid")
+	if uid == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if err := h.Service.UpdateMemoContent(c.Request.Context(), eventID, recordID, uid, req.Content); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func (h *InteractionHandler) IncrementClapCount(c *gin.Context) {
+	eventID := c.Param("id")
+	recordID := c.Param("recordId")
+
+	uid := c.GetString("uid")
+	if uid == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if err := h.Service.IncrementClapCount(c.Request.Context(), eventID, recordID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
 func (h *InteractionHandler) GetEventStatus(c *gin.Context) {
 	eventID := c.Param("id")
 	status, err := h.Service.GetEventStatus(c.Request.Context(), eventID)

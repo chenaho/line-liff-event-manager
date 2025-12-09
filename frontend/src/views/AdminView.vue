@@ -419,6 +419,20 @@ const formatDateTime = (dateTimeString) => {
               >
             </div>
           </div>
+
+          <div v-if="newEvent.type === 'MEMO'" class="space-y-3 border-t pt-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">每人留言上限</label>
+              <input 
+                type="number" 
+                v-model.number="newEvent.config.maxCommentsPerUser" 
+                placeholder="例如：3"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                min="1"
+              >
+              <p class="text-xs text-gray-500 mt-1">設定每位用戶最多可發表幾則留言</p>
+            </div>
+          </div>
         </div>
 
         <div class="mt-6 flex justify-end gap-3">
@@ -537,6 +551,20 @@ const formatDateTime = (dateTimeString) => {
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 min="0"
               >
+            </div>
+          </div>
+
+          <div v-if="editingEvent.type === 'MEMO'" class="space-y-3 border-t pt-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">每人留言上限</label>
+              <input 
+                type="number" 
+                v-model.number="editingEvent.config.maxCommentsPerUser" 
+                placeholder="例如：3"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                min="1"
+              >
+              <p class="text-xs text-gray-500 mt-1">設定每位用戶最多可發表幾則留言</p>
             </div>
           </div>
         </div>

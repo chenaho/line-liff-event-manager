@@ -139,8 +139,8 @@ onMounted(() => {
     <!-- Messages Container -->
     <div 
       ref="messagesContainer"
-      class="overflow-y-auto p-4 space-y-4 bg-gray-50"
-      style="max-height: 50vh;"
+      class="overflow-y-auto p-4 pb-24 space-y-4 bg-gray-50"
+      style="max-height: calc(100vh - 200px);"
     >
       <div v-if="messages.length === 0" class="text-center text-gray-400 py-8">
         <i class="fas fa-comments text-4xl mb-2"></i>
@@ -193,8 +193,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Input Area -->
-    <div class="p-4 bg-white border-t border-gray-200">
+    <!-- Input Area - Fixed to Bottom -->
+    <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-lg">
       <button 
         @click="openDialog"
         class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition-transform"

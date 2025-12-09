@@ -135,12 +135,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full">
+  <div class="flex flex-col">
     <!-- Messages Container -->
     <div 
       ref="messagesContainer"
-      class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
-      style="max-height: 60vh;"
+      class="overflow-y-auto p-4 space-y-4 bg-gray-50"
+      style="max-height: 50vh;"
     >
       <div v-if="messages.length === 0" class="text-center text-gray-400 py-8">
         <i class="fas fa-comments text-4xl mb-2"></i>

@@ -17,6 +17,11 @@ const messagesContainer = ref(null)
 const editingMessage = ref(null)
 const editingContent = ref('')
 
+// Prevent duplicate submissions
+const isSubmitting = ref(false)
+const isClapping = ref(false)
+const lastClapTime = ref({}) // Track last clap time per message
+
 const messages = computed(() => {
   if (!props.status || !props.status.records) return []
   return props.status.records
@@ -25,6 +30,7 @@ const messages = computed(() => {
       ...r,
       pictureUrl: r.userPictureUrl || null
     }))
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)) // Sort by timestamp ascending (oldest first)
 })
 
 const getAvatarUrl = (message) => {
@@ -66,6 +72,14 @@ const submitMemo = async () => {
     return
   }
   
+  // Prevent duplicate submissions
+  if (isSubmitting.value) {
+    showToast('正在發送中，請稍候...')
+    return
+  }
+  
+  isSubmitting.value = true
+  
   try {
     await eventStore.submitAction(props.event.eventId, 'MEMO', {
       content: content.value,
@@ -81,6 +95,11 @@ const submitMemo = async () => {
   } catch (e) {
     console.error('Send memo error:', e)
     showToast('發送失敗: ' + (e.response?.data?.error || e.message))
+  } finally {
+    // Reset submitting state after 1 second to prevent rapid clicking
+    setTimeout(() => {
+      isSubmitting.value = false
+    }, 1000)
   }
 }
 
@@ -115,12 +134,34 @@ const saveEditedMessage = async () => {
   }
 }
 
-// Clap reaction
+// Clap reaction with throttling to prevent DDOS
 const handleClap = async (message) => {
+  const now = Date.now()
+  const messageId = message.id
+  
+  // Throttle: Allow clap only once per second per message
+  if (lastClapTime.value[messageId] && now - lastClapTime.value[messageId] < 1000) {
+    showToast('請稍後再鼓掌')
+    return
+  }
+  
+  // Global throttle to prevent rapid clapping across different messages
+  if (isClapping.value) {
+    return
+  }
+  
+  isClapping.value = true
+  lastClapTime.value[messageId] = now
+  
   try {
     await eventStore.incrementClapCount(props.event.eventId, message.id)
   } catch (e) {
     showToast('鼓掌失敗')
+  } finally {
+    // Reset clapping state after 500ms
+    setTimeout(() => {
+      isClapping.value = false
+    }, 500)
   }
 }
 
@@ -182,7 +223,8 @@ onMounted(() => {
           <div class="flex gap-2 mt-1" :class="isMyMessage(msg) ? 'justify-end' : ''">
             <button 
               @click="handleClap(msg)"
-              class="text-xs flex items-center gap-1 transition-all px-2 py-1 rounded hover:bg-gray-200"
+              :disabled="isClapping"
+              class="text-xs flex items-center gap-1 transition-all px-2 py-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
               :class="(msg.clapCount || 0) > 0 ? 'text-orange-500' : 'text-gray-400'"
             >
               <i class="fas fa-hands-clapping"></i>
@@ -197,10 +239,11 @@ onMounted(() => {
     <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-lg">
       <button 
         @click="openDialog"
-        class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition-transform"
+        :disabled="isSubmitting"
+        class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <i class="fas fa-plus-circle mr-2"></i>
-        發表留言
+        {{ isSubmitting ? '發送中...' : '發表留言' }}
       </button>
     </div>
 

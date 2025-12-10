@@ -246,20 +246,23 @@ const formatDateTime = (dateTimeString) => {
       <p class="text-gray-500">No events yet. Create your first event!</p>
     </div>
     
-    <!-- Show Archived Toggle -->
-    <div v-if="eventStore.events.length > 0" class="mb-4 flex items-center gap-2">
-      <label class="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" v-model="showArchived" class="w-4 h-4 rounded" />
-        <span class="text-sm text-gray-600">顯示已封存的活動</span>
-      </label>
-    </div>
+    <!-- Events List -->
+    <template v-else>
+      <!-- Show Archived Toggle -->
+      <div class="mb-4 flex items-center gap-2">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" v-model="showArchived" class="w-4 h-4 rounded" />
+          <span class="text-sm text-gray-600">顯示已封存的活動</span>
+        </label>
+      </div>
 
-    <div v-if="!eventStore.loading && eventStore.events.length > 0" class="grid gap-4">
-      <div 
-        v-for="event in filteredEvents" 
-        :key="event.eventId" 
-        class="bg-white p-4 rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition-shadow"
-      >
+      <div class="grid gap-4">
+        <div 
+          v-for="event in filteredEvents" 
+          :key="event.eventId" 
+          class="bg-white p-4 rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition-shadow"
+        >
+
         <div>
           <div class="flex items-center gap-2">
             <span 
@@ -341,8 +344,10 @@ const formatDateTime = (dateTimeString) => {
         </div>
       </div>
     </div>
+    </template>
 
     <!-- Create Modal -->
+
     <div 
       v-if="showCreateModal" 
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"

@@ -72,26 +72,29 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "db_type": dbConfig.Type})
 	})
 
-	// Auth Routes
-	r.POST("/auth/login", authHandler.Login)
-
-	// Protected Routes
+	// API Routes Group
 	apiGroup := r.Group("/api")
-	apiGroup.Use(api.AuthMiddleware())
+
+	// Auth Routes (no authentication required)
+	apiGroup.POST("/auth/login", authHandler.Login)
+
+	// Protected Routes (require authentication)
+	protectedGroup := apiGroup.Group("")
+	protectedGroup.Use(api.AuthMiddleware())
 	{
 		// Events
-		apiGroup.POST("/events", eventHandler.CreateEvent)
-		apiGroup.GET("/events", eventHandler.ListEvents)
-		apiGroup.GET("/events/:id", eventHandler.GetEvent)
-		apiGroup.GET("/events/:id/status", interactionHandler.GetEventStatus)
-		apiGroup.POST("/events/:id/action", interactionHandler.HandleAction)
-		apiGroup.PUT("/events/:id/status", eventHandler.UpdateEventStatus)
-		apiGroup.PUT("/events/:id", eventHandler.UpdateEvent)
+		protectedGroup.POST("/events", eventHandler.CreateEvent)
+		protectedGroup.GET("/events", eventHandler.ListEvents)
+		protectedGroup.GET("/events/:id", eventHandler.GetEvent)
+		protectedGroup.GET("/events/:id/status", interactionHandler.GetEventStatus)
+		protectedGroup.POST("/events/:id/action", interactionHandler.HandleAction)
+		protectedGroup.PUT("/events/:id/status", eventHandler.UpdateEventStatus)
+		protectedGroup.PUT("/events/:id", eventHandler.UpdateEvent)
 
 		// Interaction updates
-		apiGroup.PATCH("/events/:id/records/:recordId/note", interactionHandler.UpdateRegistrationNote)
-		apiGroup.PATCH("/events/:id/records/:recordId/content", interactionHandler.UpdateMemoContent)
-		apiGroup.POST("/events/:id/records/:recordId/clap", interactionHandler.IncrementClapCount)
+		protectedGroup.PATCH("/events/:id/records/:recordId/note", interactionHandler.UpdateRegistrationNote)
+		protectedGroup.PATCH("/events/:id/records/:recordId/content", interactionHandler.UpdateMemoContent)
+		protectedGroup.POST("/events/:id/records/:recordId/clap", interactionHandler.IncrementClapCount)
 	}
 
 	port := os.Getenv("PORT")

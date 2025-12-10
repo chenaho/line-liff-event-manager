@@ -36,14 +36,7 @@ func main() {
 	// Initialize services
 	eventService := service.NewEventService(repos.Events)
 	authService := service.NewAuthService(repos.Users)
-
-	// InteractionService needs FirestoreInteractionRepository for transaction support
-	// This will be abstracted further in Phase 2 when PostgreSQL support is added
-	firestoreInteractionRepo, ok := repos.Interactions.(*repository.FirestoreInteractionRepository)
-	if !ok {
-		log.Fatal("InteractionService currently requires FirestoreInteractionRepository")
-	}
-	interactionService := service.NewInteractionService(firestoreInteractionRepo, repos.Events, repos.Users, cacheService)
+	interactionService := service.NewInteractionService(repos.Interactions, repos.Events, repos.Users, cacheService)
 
 	// Initialize Handlers
 	authHandler := api.NewAuthHandler(authService)

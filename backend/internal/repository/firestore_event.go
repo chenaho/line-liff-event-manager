@@ -50,6 +50,13 @@ func (r *FirestoreEventRepository) UpdateStatus(ctx context.Context, eventID str
 	return err
 }
 
+func (r *FirestoreEventRepository) UpdateArchived(ctx context.Context, eventID string, isArchived bool) error {
+	_, err := r.client.Client.Collection("events").Doc(eventID).Update(ctx, []firestore.Update{
+		{Path: "isArchived", Value: isArchived},
+	})
+	return err
+}
+
 func (r *FirestoreEventRepository) List(ctx context.Context, limit int) ([]*models.Event, error) {
 	iter := r.client.Client.Collection("events").OrderBy("createdAt", firestore.Desc).Limit(limit).Documents(ctx)
 	events := make([]*models.Event, 0)

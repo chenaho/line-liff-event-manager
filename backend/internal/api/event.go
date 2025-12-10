@@ -97,3 +97,23 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, events)
 }
+
+type ArchiveEventRequest struct {
+	IsArchived bool `json:"isArchived"`
+}
+
+func (h *EventHandler) ArchiveEvent(c *gin.Context) {
+	eventID := c.Param("id")
+	var req ArchiveEventRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.Service.ArchiveEvent(c.Request.Context(), eventID, req.IsArchived); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "updated", "isArchived": req.IsArchived})
+}

@@ -29,11 +29,12 @@ type EventConfig struct {
 }
 
 type Event struct {
-	EventID   string      `json:"eventId" firestore:"eventId"`
-	Type      EventType   `json:"type" firestore:"type"`
-	Title     string      `json:"title" firestore:"title"`
-	IsActive  bool        `json:"isActive" firestore:"isActive"`
-	CreatedBy string      `json:"createdBy" firestore:"createdBy"`
-	CreatedAt time.Time   `json:"createdAt" firestore:"createdAt"`
-	Config    EventConfig `json:"config" firestore:"config"`
+	EventID    string      `json:"eventId" firestore:"eventId"`
+	Type       EventType   `json:"type" firestore:"type"`
+	Title      string      `json:"title" firestore:"title"`
+	IsActive   bool        `json:"isActive" firestore:"isActive"`
+	IsArchived bool        `json:"isArchived" firestore:"isArchived"`
+	CreatedBy  string      `json:"createdBy" firestore:"createdBy"`
+	CreatedAt  time.Time   `json:"createdAt" firestore:"createdAt"`
+	Config     EventConfig `json:"config" firestore:"config"`
 }

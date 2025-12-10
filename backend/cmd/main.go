@@ -83,6 +83,7 @@ func main() {
 		protectedGroup.POST("/events/:id/action", interactionHandler.HandleAction)
 		protectedGroup.PUT("/events/:id/status", eventHandler.UpdateEventStatus)
 		protectedGroup.PUT("/events/:id", eventHandler.UpdateEvent)
+		protectedGroup.PUT("/events/:id/archive", eventHandler.ArchiveEvent)
 
 		// Interaction updates
 		protectedGroup.PATCH("/events/:id/records/:recordId/note", interactionHandler.UpdateRegistrationNote)

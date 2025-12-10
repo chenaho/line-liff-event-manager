@@ -12,6 +12,7 @@ const { showToast } = useToast()
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const editingEvent = ref(null)
+const showArchived = ref(false)
 
 const newEvent = ref({
   title: '',
@@ -154,10 +155,27 @@ const updateEvent = async () => {
   }
 }
 
-const toggleStatus = (event) => {
-  eventStore.updateEventStatus(event.eventId, !event.isActive)
-  showToast(`Event ${!event.isActive ? 'activated' : 'deactivated'}`)
+const toggleStatus = async (event) => {
+  await eventStore.updateEventStatus(event.eventId, !event.isActive)
+  showToast(`Event ${event.isActive ? 'deactivated' : 'activated'}`)
 }
+
+const archiveEvent = async (event) => {
+  try {
+    await eventStore.archiveEvent(event.eventId, !event.isArchived)
+    showToast(event.isArchived ? '已取消封存' : '已封存活動')
+  } catch (e) {
+    showToast('操作失敗: ' + e.message)
+  }
+}
+
+const filteredEvents = computed(() => {
+  if (!eventStore.events) return []
+  if (showArchived.value) {
+    return eventStore.events
+  }
+  return eventStore.events.filter(e => !e.isArchived)
+})
 
 const copyLink = (eventId) => {
   const liffId = authStore.liffId
@@ -228,9 +246,17 @@ const formatDateTime = (dateTimeString) => {
       <p class="text-gray-500">No events yet. Create your first event!</p>
     </div>
     
-    <div v-else class="grid gap-4">
+    <!-- Show Archived Toggle -->
+    <div v-if="eventStore.events.length > 0" class="mb-4 flex items-center gap-2">
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" v-model="showArchived" class="w-4 h-4 rounded" />
+        <span class="text-sm text-gray-600">顯示已封存的活動</span>
+      </label>
+    </div>
+
+    <div v-if="!eventStore.loading && eventStore.events.length > 0" class="grid gap-4">
       <div 
-        v-for="event in eventStore.events" 
+        v-for="event in filteredEvents" 
         :key="event.eventId" 
         class="bg-white p-4 rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition-shadow"
       >
@@ -300,6 +326,17 @@ const formatDateTime = (dateTimeString) => {
           >
             <i :class="event.isActive ? 'fas fa-toggle-on' : 'fas fa-toggle-off'" class="mr-1"></i>
             {{ event.isActive ? 'Active' : 'Inactive' }}
+          </button>
+          <button 
+            @click="archiveEvent(event)" 
+            :class="event.isArchived 
+              ? 'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50' 
+              : 'text-gray-600 hover:text-gray-700 hover:bg-gray-50'"
+            class="transition-colors px-3 py-1 rounded"
+            :title="event.isArchived ? '取消封存' : '封存活動'"
+          >
+            <i :class="event.isArchived ? 'fas fa-box-open' : 'fas fa-archive'" class="mr-1"></i>
+            {{ event.isArchived ? 'Unarchive' : 'Archive' }}
           </button>
         </div>
       </div>

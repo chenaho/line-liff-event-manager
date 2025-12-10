@@ -128,6 +128,19 @@ export const useEventStore = defineStore('event', {
                 throw err
             }
         },
+        async archiveEvent(eventId, isArchived) {
+            try {
+                await axios.put(`/api/events/${eventId}/archive`, { isArchived })
+                const event = this.events.find(e => e.eventId === eventId)
+                if (event) {
+                    event.isArchived = isArchived
+                }
+            } catch (err) {
+                this.error = 'Archive Event Failed: ' + err.message
+                console.error(err)
+                throw err
+            }
+        },
         async fetchEventStatus(eventId) {
             try {
                 const response = await axios.get(`/api/events/${eventId}/status`)
@@ -140,4 +153,5 @@ export const useEventStore = defineStore('event', {
         }
     }
 })
+
 

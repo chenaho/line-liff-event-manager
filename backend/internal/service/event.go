@@ -60,3 +60,7 @@ func (s *EventService) UpdateEvent(ctx context.Context, event *models.Event) (*m
 func (s *EventService) ListEvents(ctx context.Context, limit int) ([]*models.Event, error) {
 	return s.Repo.List(ctx, limit)
 }
+
+func (s *EventService) ArchiveEvent(ctx context.Context, eventID string, isArchived bool) error {
+	return s.Repo.UpdateArchived(ctx, eventID, isArchived)
+}

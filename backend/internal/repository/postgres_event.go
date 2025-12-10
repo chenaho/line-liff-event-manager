@@ -116,9 +116,15 @@ func (r *PostgresEventRepository) UpdateStatus(ctx context.Context, eventID stri
 	return err
 }
 
+func (r *PostgresEventRepository) UpdateArchived(ctx context.Context, eventID string, isArchived bool) error {
+	query := `UPDATE events SET is_archived = $2 WHERE event_id = $1`
+	_, err := r.client.DB.ExecContext(ctx, query, eventID, isArchived)
+	return err
+}
+
 func (r *PostgresEventRepository) List(ctx context.Context, limit int) ([]*models.Event, error) {
 	query := `
-		SELECT event_id, type, title, is_active, created_by, created_at, config
+		SELECT event_id, type, title, is_active, COALESCE(is_archived, false), created_by, created_at, config
 		FROM events ORDER BY created_at DESC LIMIT $1
 	`
 	rows, err := r.client.DB.QueryContext(ctx, query, limit)
@@ -132,7 +138,7 @@ func (r *PostgresEventRepository) List(ctx context.Context, limit int) ([]*model
 		var event models.Event
 		var configJSON []byte
 
-		if err := rows.Scan(&event.EventID, &event.Type, &event.Title, &event.IsActive, &event.CreatedBy, &event.CreatedAt, &configJSON); err != nil {
+		if err := rows.Scan(&event.EventID, &event.Type, &event.Title, &event.IsActive, &event.IsArchived, &event.CreatedBy, &event.CreatedAt, &configJSON); err != nil {
 			continue
 		}
 		if err := json.Unmarshal(configJSON, &event.Config); err != nil {

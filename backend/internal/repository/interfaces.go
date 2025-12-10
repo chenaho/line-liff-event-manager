@@ -12,6 +12,7 @@ type EventRepository interface {
 	GetByID(ctx context.Context, eventID string) (*models.Event, error)
 	Update(ctx context.Context, event *models.Event) error
 	UpdateStatus(ctx context.Context, eventID string, isActive bool) error
+	UpdateArchived(ctx context.Context, eventID string, isArchived bool) error
 	List(ctx context.Context, limit int) ([]*models.Event, error)
 }
 

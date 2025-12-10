@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 
 	"event-manager/internal/models"
@@ -92,9 +93,11 @@ func (h *EventHandler) UpdateEvent(c *gin.Context) {
 func (h *EventHandler) ListEvents(c *gin.Context) {
 	events, err := h.Service.ListEvents(c.Request.Context(), 20)
 	if err != nil {
+		log.Printf("[ListEvents] ERROR: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	log.Printf("[ListEvents] Returning %d events", len(events))
 	c.JSON(http.StatusOK, events)
 }
 

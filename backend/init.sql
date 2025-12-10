@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS events (
     type            VARCHAR(20) NOT NULL CHECK (type IN ('VOTE', 'LINEUP', 'MEMO')),
     title           VARCHAR(255) NOT NULL,
     is_active       BOOLEAN DEFAULT true,
+    is_archived     BOOLEAN DEFAULT false,
     created_by      VARCHAR(50) NOT NULL,
     created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     config          JSONB NOT NULL DEFAULT '{}'
@@ -15,6 +16,8 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_events_type ON events(type);
 CREATE INDEX IF NOT EXISTS idx_events_is_active ON events(is_active);
+CREATE INDEX IF NOT EXISTS idx_events_is_archived ON events(is_archived);
+
 
 -- Interactions table (like Firestore subcollection)
 CREATE TABLE IF NOT EXISTS interactions (

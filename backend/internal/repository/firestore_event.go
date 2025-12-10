@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"log"
 
 	"event-manager/internal/models"
 
@@ -58,6 +59,7 @@ func (r *FirestoreEventRepository) UpdateArchived(ctx context.Context, eventID s
 }
 
 func (r *FirestoreEventRepository) List(ctx context.Context, limit int) ([]*models.Event, error) {
+	log.Printf("[FirestoreEventRepository.List] Starting query with limit %d", limit)
 	iter := r.client.Client.Collection("events").OrderBy("createdAt", firestore.Desc).Limit(limit).Documents(ctx)
 	events := make([]*models.Event, 0)
 
@@ -67,13 +69,16 @@ func (r *FirestoreEventRepository) List(ctx context.Context, limit int) ([]*mode
 			break
 		}
 		if err != nil {
+			log.Printf("[FirestoreEventRepository.List] Error iterating: %v", err)
 			return nil, err
 		}
 		var event models.Event
 		if err := doc.DataTo(&event); err != nil {
+			log.Printf("[FirestoreEventRepository.List] Error parsing doc %s: %v", doc.Ref.ID, err)
 			continue
 		}
 		events = append(events, &event)
 	}
+	log.Printf("[FirestoreEventRepository.List] Found %d events", len(events))
 	return events, nil
 }

@@ -16,15 +16,14 @@ import (
 	"event-manager/internal/models"
 	"event-manager/internal/repository"
 
-	"cloud.google.com/go/firestore"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 type AuthService struct {
-	Repo *repository.FirestoreRepository
+	Repo repository.UserRepository
 }
 
-func NewAuthService(repo *repository.FirestoreRepository) *AuthService {
+func NewAuthService(repo repository.UserRepository) *AuthService {
 	return &AuthService{Repo: repo}
 }
 
@@ -40,13 +39,7 @@ type LineTokenResponse struct {
 }
 
 func (s *AuthService) VerifyLineToken(idToken string) (*LineTokenResponse, error) {
-	// Verify with LINE API
-	// POST https://api.line.me/oauth2/v2.1/verify
-	// Content-Type: application/x-www-form-urlencoded
-	// id_token=...&client_id=...
-
 	clientID := os.Getenv("LINE_CHANNEL_ID")
-	// The LINE verify endpoint requires the Channel ID (not LIFF ID)
 	log.Printf("[LINE VERIFY] Using LINE_CHANNEL_ID: %s", clientID)
 
 	data := url.Values{}
@@ -66,7 +59,6 @@ func (s *AuthService) VerifyLineToken(idToken string) (*LineTokenResponse, error
 	log.Printf("[LINE VERIFY] Response status: %d", resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
-		// Read response body for debugging
 		body, _ := io.ReadAll(resp.Body)
 		log.Printf("[LINE VERIFY] LINE API returned non-200 status. Body: %s", string(body))
 		return nil, errors.New("invalid line token")
@@ -89,64 +81,60 @@ func (s *AuthService) Login(ctx context.Context, idToken string) (string, *model
 		return "", nil, fmt.Errorf("failed to verify line token: %w", err)
 	}
 
-	// 2. Check/Update User in Firestore
-	userRef := s.Repo.Client.Collection("users").Doc(lineProfile.Sub)
-	doc, err := userRef.Get(ctx)
+	// 2. Check/Update User in database
+	existingUser, err := s.Repo.GetByID(ctx, lineProfile.Sub)
 
 	var user models.User
 	if err != nil {
-		if strings.Contains(err.Error(), "NotFound") || !doc.Exists() {
-			// Create new user
-			user = models.User{
-				LineUserID:      lineProfile.Sub,
-				LineDisplayName: lineProfile.Name,
-				PictureURL:      lineProfile.Picture,
-				Role:            "user",
-				CreatedAt:       time.Now(),
-			}
-			// Check Admin Whitelist
-			adminList := os.Getenv("ADMIN_LIST")
-			log.Printf("[NEW USER] Checking ADMIN_LIST for user: %s", lineProfile.Sub)
-			log.Printf("[NEW USER] ADMIN_LIST: %s", adminList)
-			if strings.Contains(adminList, lineProfile.Sub) {
-				user.Role = "admin"
-				log.Printf("[NEW USER] User %s assigned role: admin", lineProfile.Sub)
-			} else {
-				log.Printf("[NEW USER] User %s assigned role: user", lineProfile.Sub)
-			}
+		// User doesn't exist, create new user
+		user = models.User{
+			LineUserID:      lineProfile.Sub,
+			LineDisplayName: lineProfile.Name,
+			PictureURL:      lineProfile.Picture,
+			Role:            "user",
+			CreatedAt:       time.Now(),
+		}
 
-			_, err = userRef.Set(ctx, user)
-			if err != nil {
-				return "", nil, err
-			}
+		// Check Admin Whitelist
+		adminList := os.Getenv("ADMIN_LIST")
+		log.Printf("[NEW USER] Checking ADMIN_LIST for user: %s", lineProfile.Sub)
+		log.Printf("[NEW USER] ADMIN_LIST: %s", adminList)
+		if strings.Contains(adminList, lineProfile.Sub) {
+			user.Role = "admin"
+			log.Printf("[NEW USER] User %s assigned role: admin", lineProfile.Sub)
 		} else {
+			log.Printf("[NEW USER] User %s assigned role: user", lineProfile.Sub)
+		}
+
+		if err := s.Repo.Create(ctx, &user); err != nil {
 			return "", nil, err
 		}
 	} else {
-		// Update existing user info (optional, e.g. if name/picture changed)
-		doc.DataTo(&user)
+		// Update existing user info
+		user = *existingUser
 
 		// Re-check admin role from ADMIN_LIST on every login
 		adminList := os.Getenv("ADMIN_LIST")
 		log.Printf("[EXISTING USER] Checking ADMIN_LIST for user: %s", lineProfile.Sub)
 		log.Printf("[EXISTING USER] ADMIN_LIST: %s", adminList)
 		log.Printf("[EXISTING USER] Current role in DB: %s", user.Role)
+
 		newRole := "user"
 		if strings.Contains(adminList, lineProfile.Sub) {
 			newRole = "admin"
 		}
 		log.Printf("[EXISTING USER] New role assigned: %s", newRole)
 
-		updates := []firestore.Update{
-			{Path: "lineDisplayName", Value: lineProfile.Name},
-			{Path: "pictureUrl", Value: lineProfile.Picture},
-			{Path: "role", Value: newRole},
+		updates := map[string]interface{}{
+			"lineDisplayName": lineProfile.Name,
+			"pictureUrl":      lineProfile.Picture,
+			"role":            newRole,
 		}
 
-		_, err = userRef.Update(ctx, updates)
-		if err != nil {
+		if err := s.Repo.UpdateFields(ctx, lineProfile.Sub, updates); err != nil {
 			return "", nil, err
 		}
+
 		// Update local struct
 		user.LineDisplayName = lineProfile.Name
 		user.PictureURL = lineProfile.Picture

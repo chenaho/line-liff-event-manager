@@ -12,15 +12,22 @@ import (
 	"cloud.google.com/go/firestore"
 )
 
+// InteractionService handles interaction business logic
+// Note: This service requires transaction support which is database-specific
+// For now, it works with FirestoreInteractionRepository which exposes GetClient()
 type InteractionService struct {
-	Repo  *repository.FirestoreRepository
-	Cache *CacheService
+	Repo   *repository.FirestoreInteractionRepository
+	Events repository.EventRepository
+	Users  repository.UserRepository
+	Cache  *CacheService
 }
 
-func NewInteractionService(repo *repository.FirestoreRepository, cache *CacheService) *InteractionService {
+func NewInteractionService(repo *repository.FirestoreInteractionRepository, events repository.EventRepository, users repository.UserRepository, cache *CacheService) *InteractionService {
 	return &InteractionService{
-		Repo:  repo,
-		Cache: cache,
+		Repo:   repo,
+		Events: events,
+		Users:  users,
+		Cache:  cache,
 	}
 }
 
@@ -48,16 +55,14 @@ func (s *InteractionService) HandleAction(ctx context.Context, eventID string, a
 }
 
 func (s *InteractionService) handleVote(ctx context.Context, eventID string, action *models.Interaction) error {
-	// Simple write for now. Real implementation might need to check maxVotes config.
-	// Assuming frontend checks or we add read-before-write here.
-	// For Vibe Coding, we'll just save it.
-	_, err := s.Repo.Client.Collection("events").Doc(eventID).Collection("records").Doc(action.UserID).Set(ctx, action)
-	return err
+	return s.Repo.CreateWithID(ctx, eventID, action.UserID, action)
 }
 
 func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, action *models.Interaction) error {
-	return s.Repo.Client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
-		eventRef := s.Repo.Client.Collection("events").Doc(eventID)
+	client := s.Repo.GetClient()
+
+	return client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		eventRef := client.Collection("events").Doc(eventID)
 		eventDoc, err := tx.Get(eventRef)
 		if err != nil {
 			return err
@@ -76,9 +81,7 @@ func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, a
 
 		if action.Count > 0 {
 			// +1 Registration
-
-			// Get user to check if admin
-			userRef := s.Repo.Client.Collection("users").Doc(action.UserID)
+			userRef := client.Collection("users").Doc(action.UserID)
 			userDoc, err := tx.Get(userRef)
 			isAdmin := false
 			if err == nil {
@@ -87,7 +90,7 @@ func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, a
 				isAdmin = user.Role == "admin"
 			}
 
-			// Read all records to count user's active registrations and total
+			// Read all records to count
 			recordsSnap, err := tx.Documents(recordsRef).GetAll()
 			if err != nil {
 				return err
@@ -115,9 +118,7 @@ func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, a
 
 			// Determine status based on capacity
 			if totalActiveCount >= event.Config.MaxParticipants {
-				// Event is full, check waitlist
 				if event.Config.WaitlistLimit > 0 {
-					// Count current waitlist
 					waitlistCount := 0
 					for _, doc := range recordsSnap {
 						var rec models.Interaction
@@ -127,7 +128,6 @@ func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, a
 						}
 					}
 
-					// Check if waitlist is full
 					if waitlistCount >= event.Config.WaitlistLimit {
 						return errors.New("waitlist is full")
 					}
@@ -137,14 +137,11 @@ func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, a
 				action.Status = "SUCCESS"
 			}
 
-			// Create new registration record with auto-generated ID
 			action.Timestamp = time.Now()
 			return tx.Create(recordsRef.NewDoc(), action)
 
 		} else if action.Count < 0 {
-			// -1 Cancellation (LIFO - Last In, First Out)
-
-			// Read all records to find user's most recent active registration
+			// -1 Cancellation (LIFO)
 			recordsSnap, err := tx.Documents(recordsRef).GetAll()
 			if err != nil {
 				return err
@@ -167,64 +164,23 @@ func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, a
 			}
 
 			if latestRecord == nil {
-				return errors.New("no active registration to cancel")
+				return errors.New("no active registration found")
 			}
 
-			// Read status before updating
-			var oldRecord models.Interaction
-			latestRecord.DataTo(&oldRecord)
-
-			// Find waitlist candidate BEFORE any writes (if needed)
-			var firstWaiter *firestore.DocumentSnapshot
-			if oldRecord.Status == "SUCCESS" {
-				var earliestTime time.Time
-				for _, doc := range recordsSnap {
-					var rec models.Interaction
-					doc.DataTo(&rec)
-					if rec.Type == models.InteractionTypeLineUp && rec.Status == "WAITLIST" {
-						if firstWaiter == nil || rec.Timestamp.Before(earliestTime) {
-							firstWaiter = doc
-							earliestTime = rec.Timestamp
-						}
-					}
-				}
-			}
-
-			// NOW do writes: Soft delete by marking as CANCELLED
 			now := time.Now()
-			updates := []firestore.Update{
+			return tx.Update(latestRecord.Ref, []firestore.Update{
 				{Path: "status", Value: "CANCELLED"},
 				{Path: "cancelledAt", Value: now},
-			}
-
-			if err := tx.Update(latestRecord.Ref, updates); err != nil {
-				return err
-			}
-
-			// Promote waitlist candidate if found
-			if firstWaiter != nil {
-				return tx.Update(firstWaiter.Ref, []firestore.Update{
-					{Path: "status", Value: "SUCCESS"},
-				})
-			}
-			return nil
+			})
 		}
-		return nil
+
+		return errors.New("invalid count value")
 	})
 }
 
 func (s *InteractionService) handleMemo(ctx context.Context, eventID string, action *models.Interaction) error {
-	// Use auto-id for memos since one user can post multiple?
-	// Spec says "maxCommentsPerUser".
-	// If we use UserID as doc ID, user can only have one memo?
-	// Spec says "Interaction Sub-Collection".
-	// Usually for comments we want multiple.
-	// But spec JSON shows "userId" as a field, doesn't explicitly say Doc ID is UserID for Memo.
-	// However, for VOTE and LINEUP, one record per user makes sense.
-	// For MEMO, "maxCommentsPerUser: 3".
-	// So we should use AutoID for Memo records, but query to check count.
-
-	recordsRef := s.Repo.Client.Collection("events").Doc(eventID).Collection("records")
+	client := s.Repo.GetClient()
+	recordsRef := client.Collection("events").Doc(eventID).Collection("records")
 
 	// Check count
 	q := recordsRef.Where("userId", "==", action.UserID).Where("type", "==", models.InteractionTypeMemo)
@@ -233,21 +189,16 @@ func (s *InteractionService) handleMemo(ctx context.Context, eventID string, act
 		return err
 	}
 
-	// We need event config to check maxCommentsPerUser.
-	// For speed, let's assume 3 if not checked, or read event.
-	// Let's read event.
-	eventDoc, err := s.Repo.Client.Collection("events").Doc(eventID).Get(ctx)
+	event, err := s.Events.GetByID(ctx, eventID)
 	if err != nil {
 		return err
 	}
-	var event models.Event
-	eventDoc.DataTo(&event)
 
 	if len(docs) >= event.Config.MaxCommentsPerUser {
 		return errors.New("max comments reached")
 	}
 
-	_, _, err = recordsRef.Add(ctx, action)
+	_, err = s.Repo.Create(ctx, eventID, action)
 	return err
 }
 
@@ -261,27 +212,22 @@ func (s *InteractionService) GetEventStatus(ctx context.Context, eventID string)
 	}
 	log.Printf("[GetEventStatus] Cache MISS for event: %s", eventID)
 
-	// EMERGENCY ROLLBACK: Use simple GetAll() without complex queries
-	recordsRef := s.Repo.Client.Collection("events").Doc(eventID).Collection("records")
-
-	allRecords, err := recordsRef.Documents(ctx).GetAll()
+	// Fetch all records
+	interactions, err := s.Repo.GetByEventID(ctx, eventID)
 	if err != nil {
 		log.Printf("[GetEventStatus] ERROR getting records: %v", err)
 		return nil, err
 	}
 
-	log.Printf("[GetEventStatus] Successfully fetched %d total records", len(allRecords))
+	log.Printf("[GetEventStatus] Successfully fetched %d total records", len(interactions))
 
 	// Build result
-	var result = make(map[string]interface{})
-	var list []map[string]interface{}
+	result := make(map[string]interface{})
+	list := make([]map[string]interface{}, 0, len(interactions))
 
-	for _, doc := range allRecords {
-		var rec models.Interaction
-		doc.DataTo(&rec)
-
+	for _, rec := range interactions {
 		recMap := map[string]interface{}{
-			"id":              doc.Ref.ID,
+			"id":              rec.ID,
 			"type":            rec.Type,
 			"userId":          rec.UserID,
 			"userDisplayName": rec.UserDisplayName,
@@ -301,16 +247,17 @@ func (s *InteractionService) GetEventStatus(ctx context.Context, eventID string)
 
 	result["records"] = list
 
-	// Cache the result for 30 seconds
+	// Cache the result
 	s.Cache.Set(eventID, result)
 
 	return result, nil
 }
 
 func (s *InteractionService) UpdateRegistrationNote(ctx context.Context, eventID, recordID, userID, note string) error {
-	recordRef := s.Repo.Client.Collection("events").Doc(eventID).Collection("records").Doc(recordID)
+	client := s.Repo.GetClient()
+	recordRef := client.Collection("events").Doc(eventID).Collection("records").Doc(recordID)
 
-	err := s.Repo.Client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+	err := client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		doc, err := tx.Get(recordRef)
 		if err != nil {
 			return errors.New("record not found")
@@ -321,18 +268,15 @@ func (s *InteractionService) UpdateRegistrationNote(ctx context.Context, eventID
 			return err
 		}
 
-		// Verify user owns this record
 		if record.UserID != userID {
 			return errors.New("unauthorized: can only edit own registration")
 		}
 
-		// Update note
 		return tx.Update(recordRef, []firestore.Update{
 			{Path: "note", Value: note},
 		})
 	})
 
-	// Invalidate cache after successful update
 	if err == nil {
 		s.Cache.Invalidate(eventID)
 	}
@@ -341,9 +285,10 @@ func (s *InteractionService) UpdateRegistrationNote(ctx context.Context, eventID
 }
 
 func (s *InteractionService) UpdateMemoContent(ctx context.Context, eventID, recordID, userID, content string) error {
-	recordRef := s.Repo.Client.Collection("events").Doc(eventID).Collection("records").Doc(recordID)
+	client := s.Repo.GetClient()
+	recordRef := client.Collection("events").Doc(eventID).Collection("records").Doc(recordID)
 
-	err := s.Repo.Client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+	err := client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		doc, err := tx.Get(recordRef)
 		if err != nil {
 			return errors.New("record not found")
@@ -354,18 +299,15 @@ func (s *InteractionService) UpdateMemoContent(ctx context.Context, eventID, rec
 			return err
 		}
 
-		// Verify user owns this record
 		if record.UserID != userID {
 			return errors.New("unauthorized: can only edit own message")
 		}
 
-		// Update content
 		return tx.Update(recordRef, []firestore.Update{
 			{Path: "content", Value: content},
 		})
 	})
 
-	// Invalidate cache after successful update
 	if err == nil {
 		s.Cache.Invalidate(eventID)
 	}
@@ -374,9 +316,10 @@ func (s *InteractionService) UpdateMemoContent(ctx context.Context, eventID, rec
 }
 
 func (s *InteractionService) IncrementClapCount(ctx context.Context, eventID, recordID string) error {
-	recordRef := s.Repo.Client.Collection("events").Doc(eventID).Collection("records").Doc(recordID)
+	client := s.Repo.GetClient()
+	recordRef := client.Collection("events").Doc(eventID).Collection("records").Doc(recordID)
 
-	err := s.Repo.Client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+	err := client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		doc, err := tx.Get(recordRef)
 		if err != nil {
 			return errors.New("record not found")
@@ -387,7 +330,6 @@ func (s *InteractionService) IncrementClapCount(ctx context.Context, eventID, re
 			return err
 		}
 
-		// Increment clap count (max 99)
 		newCount := record.ClapCount + 1
 		if newCount > 99 {
 			newCount = 99
@@ -398,7 +340,6 @@ func (s *InteractionService) IncrementClapCount(ctx context.Context, eventID, re
 		})
 	})
 
-	// Invalidate cache after successful update
 	if err == nil {
 		s.Cache.Invalidate(eventID)
 	}

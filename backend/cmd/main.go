@@ -1,13 +1,14 @@
 package main
 
 import (
-	"event-manager/internal/api"
-	"event-manager/internal/repository"
-	"event-manager/internal/service"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"event-manager/internal/api"
+	"event-manager/internal/repository"
+	"event-manager/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -18,21 +19,31 @@ func main() {
 		log.Println("No .env file found")
 	}
 
-	// Initialize Repository
-	firestoreRepo, err := repository.NewFirestoreRepository() // Renamed repo to firestoreRepo
-	if err != nil {
-		log.Fatalf("Failed to initialize Firestore: %v", err)
-	}
-	defer firestoreRepo.Close() // Renamed
+	// Load database configuration from environment
+	dbConfig := repository.LoadConfigFromEnv()
+	log.Printf("Using database type: %s", dbConfig.Type)
 
-	// Initialize services
-	eventService := service.NewEventService(firestoreRepo) // Passed firestoreRepo
+	// Initialize repositories based on configuration
+	repos, err := repository.NewRepositories(dbConfig)
+	if err != nil {
+		log.Fatalf("Failed to initialize repositories: %v", err)
+	}
+	defer repos.Close()
 
 	// Initialize cache service with 30-second TTL
-	cacheService := service.NewCacheService(30 * time.Second) // New cache service initialization
+	cacheService := service.NewCacheService(30 * time.Second)
 
-	interactionService := service.NewInteractionService(firestoreRepo, cacheService) // Passed firestoreRepo and cacheService
-	authService := service.NewAuthService(firestoreRepo)                             // Passed firestoreRepo and reordered
+	// Initialize services
+	eventService := service.NewEventService(repos.Events)
+	authService := service.NewAuthService(repos.Users)
+
+	// InteractionService needs FirestoreInteractionRepository for transaction support
+	// This will be abstracted further in Phase 2 when PostgreSQL support is added
+	firestoreInteractionRepo, ok := repos.Interactions.(*repository.FirestoreInteractionRepository)
+	if !ok {
+		log.Fatal("InteractionService currently requires FirestoreInteractionRepository")
+	}
+	interactionService := service.NewInteractionService(firestoreInteractionRepo, repos.Events, repos.Users, cacheService)
 
 	// Initialize Handlers
 	authHandler := api.NewAuthHandler(authService)
@@ -41,58 +52,43 @@ func main() {
 
 	r := gin.Default()
 
-	// CORS Middleware (Basic)
+	// CORS Middleware
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
 		}
+
 		c.Next()
 	})
 
-	r.GET("/api/health", func(c *gin.Context) {
-		// Check required environment variables
-		jwtSecret := os.Getenv("JWT_SECRET")
-		lineChannelID := os.Getenv("LINE_CHANNEL_ID")
-		adminList := os.Getenv("ADMIN_LIST")
-
-		envStatus := gin.H{
-			"JWT_SECRET":      jwtSecret != "",
-			"LINE_CHANNEL_ID": lineChannelID != "",
-			"ADMIN_LIST":      adminList != "",
-		}
-
-		allConfigured := jwtSecret != "" && lineChannelID != "" && adminList != ""
-
-		c.JSON(http.StatusOK, gin.H{
-			"status":         "ok",
-			"env_configured": allConfigured,
-			"env_status":     envStatus,
-		})
+	// Health Check
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "db_type": dbConfig.Type})
 	})
 
 	// Auth Routes
-	r.POST("/api/auth/login", authHandler.Login)
+	r.POST("/auth/login", authHandler.Login)
 
-	// Protected Routes Group
+	// Protected Routes
 	apiGroup := r.Group("/api")
 	apiGroup.Use(api.AuthMiddleware())
 	{
-		apiGroup.POST("/events", api.AdminMiddleware(), eventHandler.CreateEvent)
-		apiGroup.PUT("/events/:id", api.AdminMiddleware(), eventHandler.UpdateEvent)
-		apiGroup.PUT("/events/:id/status", api.AdminMiddleware(), eventHandler.UpdateEventStatus)
-		apiGroup.GET("/events", api.AdminMiddleware(), eventHandler.ListEvents) // Admin list
-
-		// Public/User Event Routes (some might need auth, some public)
-		// Spec says "GET /api/events/{id}" is for user interaction
+		// Events
+		apiGroup.POST("/events", eventHandler.CreateEvent)
+		apiGroup.GET("/events", eventHandler.ListEvents)
 		apiGroup.GET("/events/:id", eventHandler.GetEvent)
 		apiGroup.GET("/events/:id/status", interactionHandler.GetEventStatus)
 		apiGroup.POST("/events/:id/action", interactionHandler.HandleAction)
+		apiGroup.PUT("/events/:id/status", eventHandler.UpdateEventStatus)
+		apiGroup.PUT("/events/:id", eventHandler.UpdateEvent)
+
+		// Interaction updates
 		apiGroup.PATCH("/events/:id/records/:recordId/note", interactionHandler.UpdateRegistrationNote)
 		apiGroup.PATCH("/events/:id/records/:recordId/content", interactionHandler.UpdateMemoContent)
 		apiGroup.POST("/events/:id/records/:recordId/clap", interactionHandler.IncrementClapCount)
@@ -102,9 +98,6 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-
 	log.Printf("Server starting on port %s", port)
-	if err := r.Run(":" + port); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
+	r.Run(":" + port)
 }

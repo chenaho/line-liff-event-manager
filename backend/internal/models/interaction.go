@@ -11,6 +11,7 @@ const (
 )
 
 type Interaction struct {
+	ID              string          `json:"id,omitempty" firestore:"-"` // Document ID (not stored in Firestore)
 	UserID          string          `json:"userId" firestore:"userId"`
 	UserDisplayName string          `json:"userDisplayName" firestore:"userDisplayName"`
 	UserPictureUrl  string          `json:"userPictureUrl,omitempty" firestore:"userPictureUrl,omitempty"`

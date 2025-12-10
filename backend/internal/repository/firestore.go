@@ -9,11 +9,13 @@ import (
 	"google.golang.org/api/option"
 )
 
-type FirestoreRepository struct {
+// FirestoreClient wraps the Firestore client
+type FirestoreClient struct {
 	Client *firestore.Client
 }
 
-func NewFirestoreRepository() (*FirestoreRepository, error) {
+// NewFirestoreClient creates a new Firestore client
+func NewFirestoreClient() (*FirestoreClient, error) {
 	ctx := context.Background()
 	credsPath := os.Getenv("FIREBASE_CREDENTIALS")
 
@@ -24,8 +26,6 @@ func NewFirestoreRepository() (*FirestoreRepository, error) {
 		opt := option.WithCredentialsFile(credsPath)
 		app, err = firebase.NewApp(ctx, nil, opt)
 	} else {
-		// Fallback for when running in GCP environment (automatic auth)
-		// or if just testing without explicit key file (might fail later)
 		app, err = firebase.NewApp(ctx, nil)
 	}
 
@@ -38,11 +38,13 @@ func NewFirestoreRepository() (*FirestoreRepository, error) {
 		return nil, err
 	}
 
-	return &FirestoreRepository{Client: client}, nil
+	return &FirestoreClient{Client: client}, nil
 }
 
-func (r *FirestoreRepository) Close() {
-	if r.Client != nil {
-		r.Client.Close()
+// Close closes the Firestore client
+func (c *FirestoreClient) Close() error {
+	if c.Client != nil {
+		return c.Client.Close()
 	}
+	return nil
 }

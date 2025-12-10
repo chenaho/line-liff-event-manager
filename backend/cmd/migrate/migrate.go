@@ -147,8 +147,28 @@ func initFirestore(ctx context.Context) *firestore.Client {
 		log.Fatal("FIREBASE_CREDENTIALS environment variable is required")
 	}
 
+	// Read credentials file to get project ID
+	credsData, err := os.ReadFile(credsPath)
+	if err != nil {
+		log.Fatalf("Failed to read credentials file: %v", err)
+	}
+
+	var creds struct {
+		ProjectID string `json:"project_id"`
+	}
+	if err := json.Unmarshal(credsData, &creds); err != nil {
+		log.Fatalf("Failed to parse credentials: %v", err)
+	}
+
+	if creds.ProjectID == "" {
+		log.Fatal("project_id not found in credentials file")
+	}
+
+	log.Printf("Using Firebase project: %s", creds.ProjectID)
+
 	opt := option.WithCredentialsFile(credsPath)
-	app, err := firebase.NewApp(ctx, nil, opt)
+	conf := &firebase.Config{ProjectID: creds.ProjectID}
+	app, err := firebase.NewApp(ctx, conf, opt)
 	if err != nil {
 		log.Fatalf("Failed to initialize Firebase: %v", err)
 	}

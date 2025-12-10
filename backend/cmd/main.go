@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -18,16 +19,20 @@ func main() {
 	}
 
 	// Initialize Repository
-	repo, err := repository.NewFirestoreRepository()
+	firestoreRepo, err := repository.NewFirestoreRepository() // Renamed repo to firestoreRepo
 	if err != nil {
 		log.Fatalf("Failed to initialize Firestore: %v", err)
 	}
-	defer repo.Close()
+	defer firestoreRepo.Close() // Renamed
 
-	// Initialize Services
-	authService := service.NewAuthService(repo)
-	eventService := service.NewEventService(repo)
-	interactionService := service.NewInteractionService(repo)
+	// Initialize services
+	eventService := service.NewEventService(firestoreRepo) // Passed firestoreRepo
+
+	// Initialize cache service with 30-second TTL
+	cacheService := service.NewCacheService(30 * time.Second) // New cache service initialization
+
+	interactionService := service.NewInteractionService(firestoreRepo, cacheService) // Passed firestoreRepo and cacheService
+	authService := service.NewAuthService(firestoreRepo)                             // Passed firestoreRepo and reordered
 
 	// Initialize Handlers
 	authHandler := api.NewAuthHandler(authService)

@@ -12,26 +12,38 @@ import (
 )
 
 type InteractionService struct {
-	Repo *repository.FirestoreRepository
+	Repo  *repository.FirestoreRepository
+	Cache *CacheService
 }
 
-func NewInteractionService(repo *repository.FirestoreRepository) *InteractionService {
-	return &InteractionService{Repo: repo}
+func NewInteractionService(repo *repository.FirestoreRepository, cache *CacheService) *InteractionService {
+	return &InteractionService{
+		Repo:  repo,
+		Cache: cache,
+	}
 }
 
 func (s *InteractionService) HandleAction(ctx context.Context, eventID string, action *models.Interaction) error {
 	action.Timestamp = time.Now()
 
+	var err error
 	switch action.Type {
 	case models.InteractionTypeVote:
-		return s.handleVote(ctx, eventID, action)
+		err = s.handleVote(ctx, eventID, action)
 	case models.InteractionTypeLineUp:
-		return s.handleLineUp(ctx, eventID, action)
+		err = s.handleLineUp(ctx, eventID, action)
 	case models.InteractionTypeMemo:
-		return s.handleMemo(ctx, eventID, action)
+		err = s.handleMemo(ctx, eventID, action)
 	default:
 		return errors.New("unknown action type")
 	}
+
+	// Invalidate cache after successful write
+	if err == nil {
+		s.Cache.Invalidate(eventID)
+	}
+
+	return err
 }
 
 func (s *InteractionService) handleVote(ctx context.Context, eventID string, action *models.Interaction) error {
@@ -239,22 +251,56 @@ func (s *InteractionService) handleMemo(ctx context.Context, eventID string, act
 }
 
 func (s *InteractionService) GetEventStatus(ctx context.Context, eventID string) (map[string]interface{}, error) {
-	// Return aggregated status
-	records, err := s.Repo.Client.Collection("events").Doc(eventID).Collection("records").Documents(ctx).GetAll()
+	// Check cache first
+	if cached, found := s.Cache.Get(eventID); found {
+		return cached, nil
+	}
+
+	// Fetch from Firestore with optimized queries
+	recordsRef := s.Repo.Client.Collection("events").Doc(eventID).Collection("records")
+
+	var allRecords []*firestore.DocumentSnapshot
+
+	// Query VOTE records (no limit, usually small)
+	voteQuery := recordsRef.Where("type", "==", models.InteractionTypeVote)
+	voteSnap, err := voteQuery.Documents(ctx).GetAll()
 	if err != nil {
 		return nil, err
 	}
+	allRecords = append(allRecords, voteSnap...)
 
+	// Query LINEUP records (limit to 120: 100 SUCCESS + 20 WAITLIST)
+	lineupQuery := recordsRef.Where("type", "==", models.InteractionTypeLineUp).
+		Where("status", "in", []string{"SUCCESS", "WAITLIST"}).
+		OrderBy("timestamp", firestore.Asc).
+		Limit(120)
+	lineupSnap, err := lineupQuery.Documents(ctx).GetAll()
+	if err != nil {
+		return nil, err
+	}
+	allRecords = append(allRecords, lineupSnap...)
+
+	// Query MEMO records (limit to 50 most recent)
+	memoQuery := recordsRef.Where("type", "==", models.InteractionTypeMemo).
+		OrderBy("timestamp", firestore.Desc).
+		Limit(50)
+	memoSnap, err := memoQuery.Documents(ctx).GetAll()
+	if err != nil {
+		return nil, err
+	}
+	allRecords = append(allRecords, memoSnap...)
+
+	// Build result
 	var result = make(map[string]interface{})
 	var list []map[string]interface{}
 
-	for _, doc := range records {
+	for _, doc := range allRecords {
 		var rec models.Interaction
 		doc.DataTo(&rec)
 
 		// Convert to map and add document ID
 		recMap := map[string]interface{}{
-			"id":              doc.Ref.ID, // Add document ID
+			"id":              doc.Ref.ID,
 			"type":            rec.Type,
 			"userId":          rec.UserID,
 			"userDisplayName": rec.UserDisplayName,
@@ -271,14 +317,17 @@ func (s *InteractionService) GetEventStatus(ctx context.Context, eventID string)
 	}
 
 	result["records"] = list
+
+	// Cache the result for 30 seconds
+	s.Cache.Set(eventID, result)
+
 	return result, nil
 }
 
 func (s *InteractionService) UpdateRegistrationNote(ctx context.Context, eventID, recordID, userID, note string) error {
-	// Get the record
 	recordRef := s.Repo.Client.Collection("events").Doc(eventID).Collection("records").Doc(recordID)
 
-	return s.Repo.Client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+	err := s.Repo.Client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		doc, err := tx.Get(recordRef)
 		if err != nil {
 			return errors.New("record not found")
@@ -299,12 +348,19 @@ func (s *InteractionService) UpdateRegistrationNote(ctx context.Context, eventID
 			{Path: "note", Value: note},
 		})
 	})
+
+	// Invalidate cache after successful update
+	if err == nil {
+		s.Cache.Invalidate(eventID)
+	}
+
+	return err
 }
 
 func (s *InteractionService) UpdateMemoContent(ctx context.Context, eventID, recordID, userID, content string) error {
 	recordRef := s.Repo.Client.Collection("events").Doc(eventID).Collection("records").Doc(recordID)
 
-	return s.Repo.Client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+	err := s.Repo.Client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		doc, err := tx.Get(recordRef)
 		if err != nil {
 			return errors.New("record not found")
@@ -325,12 +381,19 @@ func (s *InteractionService) UpdateMemoContent(ctx context.Context, eventID, rec
 			{Path: "content", Value: content},
 		})
 	})
+
+	// Invalidate cache after successful update
+	if err == nil {
+		s.Cache.Invalidate(eventID)
+	}
+
+	return err
 }
 
 func (s *InteractionService) IncrementClapCount(ctx context.Context, eventID, recordID string) error {
 	recordRef := s.Repo.Client.Collection("events").Doc(eventID).Collection("records").Doc(recordID)
 
-	return s.Repo.Client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+	err := s.Repo.Client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		doc, err := tx.Get(recordRef)
 		if err != nil {
 			return errors.New("record not found")
@@ -351,4 +414,11 @@ func (s *InteractionService) IncrementClapCount(ctx context.Context, eventID, re
 			{Path: "clapCount", Value: newCount},
 		})
 	})
+
+	// Invalidate cache after successful update
+	if err == nil {
+		s.Cache.Invalidate(eventID)
+	}
+
+	return err
 }

@@ -55,11 +55,17 @@ check_env() {
 
     if [ -z "$FIREBASE_CREDENTIALS" ]; then
         if [ -f "${SCRIPT_DIR}/firebase-key.json" ]; then
-            export FIREBASE_CREDENTIALS="${SCRIPT_DIR}/firebase-key.json"
+            # Use absolute path
+            export FIREBASE_CREDENTIALS="$(cd "${SCRIPT_DIR}" && pwd)/firebase-key.json"
         else
             echo -e "${RED}Error: FIREBASE_CREDENTIALS not set${NC}"
             echo "Set it or place firebase-key.json in project root"
             exit 1
+        fi
+    else
+        # Convert to absolute path if relative
+        if [[ ! "$FIREBASE_CREDENTIALS" = /* ]]; then
+            export FIREBASE_CREDENTIALS="$(cd "${SCRIPT_DIR}" && pwd)/${FIREBASE_CREDENTIALS}"
         fi
     fi
 
@@ -73,7 +79,10 @@ check_env() {
     export POSTGRES_PORT=${POSTGRES_PORT:-5433}
     export POSTGRES_USER=${POSTGRES_USER:-eventmanager}
     export POSTGRES_DB=${POSTGRES_DB:-eventmanager}
+    
+    echo -e "${BLUE}Firebase credentials: ${FIREBASE_CREDENTIALS}${NC}"
 }
+
 
 run_migration() {
     local command=$1

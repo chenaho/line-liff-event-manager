@@ -269,34 +269,39 @@ func (s *InteractionService) GetEventStatus(ctx context.Context, eventID string)
 	}
 	allRecords = append(allRecords, voteSnap...)
 
-	// Query LINEUP records (limit to 120: 100 SUCCESS + 20 WAITLIST)
+	// Query LINEUP records - simplified to avoid composite index
+	// Just filter by type, sort and limit on server side
 	lineupQuery := recordsRef.Where("type", "==", models.InteractionTypeLineUp).
-		Where("status", "in", []string{"SUCCESS", "WAITLIST"}).
 		OrderBy("timestamp", firestore.Asc).
-		Limit(120)
+		Limit(200) // Increased limit to account for cancelled records
 	lineupSnap, err := lineupQuery.Documents(ctx).GetAll()
 	if err != nil {
 		return nil, err
 	}
 	allRecords = append(allRecords, lineupSnap...)
 
-	// Query MEMO records (limit to 50 most recent)
+	// Query MEMO records (limit to 100 most recent)
 	memoQuery := recordsRef.Where("type", "==", models.InteractionTypeMemo).
 		OrderBy("timestamp", firestore.Desc).
-		Limit(50)
+		Limit(100)
 	memoSnap, err := memoQuery.Documents(ctx).GetAll()
 	if err != nil {
 		return nil, err
 	}
 	allRecords = append(allRecords, memoSnap...)
 
-	// Build result
+	// Build result and filter LINEUP on server side
 	var result = make(map[string]interface{})
 	var list []map[string]interface{}
 
 	for _, doc := range allRecords {
 		var rec models.Interaction
 		doc.DataTo(&rec)
+
+		// Filter out CANCELLED LINEUP records
+		if rec.Type == models.InteractionTypeLineUp && rec.Status == "CANCELLED" {
+			continue
+		}
 
 		// Convert to map and add document ID
 		recMap := map[string]interface{}{

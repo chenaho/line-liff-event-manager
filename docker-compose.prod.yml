@@ -11,7 +11,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
-      - "5432:5432"
+      - "5433:5432" # External port 5433 to avoid conflict
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U eventmanager" ]
       interval: 5s

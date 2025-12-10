@@ -280,8 +280,8 @@ func (s *InteractionService) IncrementClapCount(ctx context.Context, eventID, re
 	}
 
 	newCount := record.ClapCount + 1
-	if newCount > 99 {
-		newCount = 99
+	if newCount > 200 {
+		newCount = 200
 	}
 
 	err = s.Repo.Update(ctx, eventID, recordID, map[string]interface{}{

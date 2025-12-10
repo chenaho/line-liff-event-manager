@@ -86,11 +86,19 @@ func main() {
 
 	command := os.Args[1]
 
-	// Initialize connections
+	// Initialize Firestore connection
 	ctx := context.Background()
 	fsClient := initFirestore(ctx)
 	defer fsClient.Close()
 
+	// dry-run only needs Firestore
+	if command == "dry-run" {
+		dryRun(ctx, fsClient)
+		log.Println("=== Dry Run Complete ===")
+		return
+	}
+
+	// Other commands need PostgreSQL
 	pgDB := initPostgres()
 	defer pgDB.Close()
 
@@ -107,8 +115,6 @@ func main() {
 		migrateInteractions(ctx, fsClient, pgDB)
 	case "verify":
 		verifyMigration(ctx, fsClient, pgDB)
-	case "dry-run":
-		dryRun(ctx, fsClient)
 	default:
 		printUsage()
 		os.Exit(1)

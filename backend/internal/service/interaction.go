@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"event-manager/internal/models"
@@ -251,46 +252,27 @@ func (s *InteractionService) handleMemo(ctx context.Context, eventID string, act
 }
 
 func (s *InteractionService) GetEventStatus(ctx context.Context, eventID string) (map[string]interface{}, error) {
+	log.Printf("[GetEventStatus] Fetching status for event: %s", eventID)
+
 	// Check cache first
 	if cached, found := s.Cache.Get(eventID); found {
+		log.Printf("[GetEventStatus] Cache HIT for event: %s", eventID)
 		return cached, nil
 	}
+	log.Printf("[GetEventStatus] Cache MISS for event: %s", eventID)
 
-	// Fetch from Firestore with optimized queries
+	// EMERGENCY ROLLBACK: Use simple GetAll() without complex queries
 	recordsRef := s.Repo.Client.Collection("events").Doc(eventID).Collection("records")
 
-	var allRecords []*firestore.DocumentSnapshot
-
-	// Query VOTE records (no limit, usually small)
-	voteQuery := recordsRef.Where("type", "==", models.InteractionTypeVote)
-	voteSnap, err := voteQuery.Documents(ctx).GetAll()
+	allRecords, err := recordsRef.Documents(ctx).GetAll()
 	if err != nil {
+		log.Printf("[GetEventStatus] ERROR getting records: %v", err)
 		return nil, err
 	}
-	allRecords = append(allRecords, voteSnap...)
 
-	// Query LINEUP records - simplified to avoid composite index
-	// Just filter by type, sort and limit on server side
-	lineupQuery := recordsRef.Where("type", "==", models.InteractionTypeLineUp).
-		OrderBy("timestamp", firestore.Asc).
-		Limit(200) // Increased limit to account for cancelled records
-	lineupSnap, err := lineupQuery.Documents(ctx).GetAll()
-	if err != nil {
-		return nil, err
-	}
-	allRecords = append(allRecords, lineupSnap...)
+	log.Printf("[GetEventStatus] Successfully fetched %d total records", len(allRecords))
 
-	// Query MEMO records (limit to 100 most recent)
-	memoQuery := recordsRef.Where("type", "==", models.InteractionTypeMemo).
-		OrderBy("timestamp", firestore.Desc).
-		Limit(100)
-	memoSnap, err := memoQuery.Documents(ctx).GetAll()
-	if err != nil {
-		return nil, err
-	}
-	allRecords = append(allRecords, memoSnap...)
-
-	// Build result and filter LINEUP on server side
+	// Build result
 	var result = make(map[string]interface{})
 	var list []map[string]interface{}
 
@@ -298,12 +280,6 @@ func (s *InteractionService) GetEventStatus(ctx context.Context, eventID string)
 		var rec models.Interaction
 		doc.DataTo(&rec)
 
-		// Filter out CANCELLED LINEUP records
-		if rec.Type == models.InteractionTypeLineUp && rec.Status == "CANCELLED" {
-			continue
-		}
-
-		// Convert to map and add document ID
 		recMap := map[string]interface{}{
 			"id":              doc.Ref.ID,
 			"type":            rec.Type,
@@ -320,6 +296,8 @@ func (s *InteractionService) GetEventStatus(ctx context.Context, eventID string)
 		}
 		list = append(list, recMap)
 	}
+
+	log.Printf("[GetEventStatus] Returning %d records for event: %s", len(list), eventID)
 
 	result["records"] = list
 

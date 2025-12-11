@@ -181,8 +181,11 @@ const copyLink = (eventId) => {
   const liffId = authStore.liffId
   const url = `https://liff.line.me/${liffId}?eventId=${eventId}`
   navigator.clipboard.writeText(url)
-  showToast('Link copied to clipboard!')
+  showToast('Link copied!')
+  // Open the link in a new window
+  window.open(url, '_blank')
 }
+
 
 const getTypeBadgeClass = (type) => {
   const classes = {

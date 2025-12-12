@@ -96,15 +96,16 @@ deploy_firestore() {
     sed -i.bak 's/^DB_TYPE=.*/DB_TYPE=firestore/' "${SCRIPT_DIR}/.env" 2>/dev/null || \
     sed -i '' 's/^DB_TYPE=.*/DB_TYPE=firestore/' "${SCRIPT_DIR}/.env"
     
-    # Deploy without postgres profile
+    # Deploy without postgres profile (Caddy managed externally via web_gateway)
     if [ "$BUILD_FLAG" = "true" ]; then
-        $DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d --build $NO_CACHE_FLAG app-backend caddy
+        $DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d --build $NO_CACHE_FLAG app-backend
     else
-        $DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d app-backend caddy
+        $DOCKER_COMPOSE -f "$COMPOSE_FILE" up -d app-backend
     fi
     
     echo -e "${GREEN}✓ Deployed with Firestore${NC}"
 }
+
 
 deploy_postgres() {
     echo -e "${GREEN}Deploying with PostgreSQL...${NC}"

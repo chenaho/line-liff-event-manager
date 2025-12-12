@@ -24,6 +24,7 @@ services:
   # Backend API
   app-backend:
     build: ./backend
+    container_name: event-backend
     environment:
       - PORT=8080
       - GO_ENV=production
@@ -44,29 +45,26 @@ services:
       - LINE_CHANNEL_ID=${LINE_CHANNEL_ID}
     volumes:
       - ./firebase-key.json:/app/firebase-key.json
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     restart: always
     depends_on:
       postgres:
         condition: service_healthy
         required: false
+    networks:
+      - default
+      - web_gateway
+    labels:
+      caddy: "eventmanager.chenaho.com" # 請修改為你的域名
+      caddy.reverse_proxy: "{{upstreams 8080}}"
 
-  # Caddy Reverse Proxy (HTTPS)
-  caddy:
-    image: caddy:2-alpine
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - app-backend
+networks:
+  default:
+    driver: bridge
+  web_gateway:
+    external: true
+    name: web_gateway
 
 volumes:
-  caddy_data:
-  caddy_config:
   postgres_data:

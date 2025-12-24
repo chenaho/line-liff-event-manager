@@ -83,7 +83,7 @@ const formatDateTime = (dateTimeString) => {
 
     <!-- Content -->
     <div class="p-4">
-      <EventVote v-if="event.type === 'VOTE'" :event="event" :status="status" />
+      <EventVote v-if="event.type === 'VOTE'" :event="event" v-model:status="status" />
       <EventLineUp v-else-if="event.type === 'LINEUP'" :event="event" :status="status" />
       <EventMemo v-else-if="event.type === 'MEMO'" :event="event" :status="status" />
     </div>

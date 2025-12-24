@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { useToast } from '../composables/useToast'
 
 const props = defineProps(['event', 'status'])
+const emit = defineEmits(['update:status'])
 const eventStore = useEventStore()
 const authStore = useAuthStore()
 const { showToast } = useToast()
@@ -60,11 +61,15 @@ const submitVote = async () => {
   }
   
   try {
-    await eventStore.submitAction(props.event.eventId, 'VOTE', {
+    const newStatus = await eventStore.submitAction(props.event.eventId, 'VOTE', {
       selectedOptions: selected.value,
       userDisplayName: authStore.user?.lineDisplayName,
       userPictureUrl: authStore.user?.pictureUrl
     })
+    // Emit updated status to parent
+    if (newStatus) {
+      emit('update:status', newStatus)
+    }
     showToast('投票成功！')
   } catch (e) {
     showToast('投票失敗: ' + e.message)

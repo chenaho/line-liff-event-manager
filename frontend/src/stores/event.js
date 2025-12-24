@@ -87,8 +87,9 @@ export const useEventStore = defineStore('event', {
         async submitAction(eventId, type, payload) {
             try {
                 await axios.post(`/api/events/${eventId}/action`, { type, payload })
-                // Refresh status after action
-                await this.fetchEventStatus(eventId)
+                // Refresh status after action and return it
+                const newStatus = await this.fetchEventStatus(eventId)
+                return newStatus
             } catch (err) {
                 this.error = 'Action Failed: ' + err.message
                 console.error(err)

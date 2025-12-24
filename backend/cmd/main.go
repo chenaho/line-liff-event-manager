@@ -21,7 +21,6 @@ func main() {
 
 	// Load database configuration from environment
 	dbConfig := repository.LoadConfigFromEnv()
-	log.Printf("Using database type: %s", dbConfig.Type)
 
 	// Initialize repositories based on configuration
 	repos, err := repository.NewRepositories(dbConfig)
@@ -62,7 +61,7 @@ func main() {
 
 	// Health Check
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "db_type": dbConfig.Type})
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "db_type": "postgres"})
 	})
 
 	// API Routes Group

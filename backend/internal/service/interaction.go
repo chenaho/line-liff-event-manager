@@ -11,31 +11,21 @@ import (
 )
 
 // InteractionService handles interaction business logic
-// Supports both Firestore and PostgreSQL through repository interfaces
 type InteractionService struct {
 	Repo   repository.InteractionRepository
 	Events repository.EventRepository
 	Users  repository.UserRepository
 	Cache  *CacheService
-	// For Firestore transaction support (optional)
-	FirestoreRepo *repository.FirestoreInteractionRepository
 }
 
-// NewInteractionService creates an InteractionService with generic repository
+// NewInteractionService creates an InteractionService with repository
 func NewInteractionService(repo repository.InteractionRepository, events repository.EventRepository, users repository.UserRepository, cache *CacheService) *InteractionService {
-	svc := &InteractionService{
+	return &InteractionService{
 		Repo:   repo,
 		Events: events,
 		Users:  users,
 		Cache:  cache,
 	}
-
-	// Check if it's a Firestore repository for transaction support
-	if fsRepo, ok := repo.(*repository.FirestoreInteractionRepository); ok {
-		svc.FirestoreRepo = fsRepo
-	}
-
-	return svc
 }
 
 func (s *InteractionService) HandleAction(ctx context.Context, eventID string, action *models.Interaction) error {

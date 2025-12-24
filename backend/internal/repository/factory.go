@@ -2,12 +2,12 @@ package repository
 
 import (
 	"errors"
+	"log"
 	"os"
 )
 
 // Config holds database configuration
 type Config struct {
-	Type     string         // "firestore" or "postgres"
 	Postgres PostgresConfig // PostgreSQL configuration
 }
 
@@ -23,14 +23,7 @@ type PostgresConfig struct {
 
 // LoadConfigFromEnv creates a Config from environment variables
 func LoadConfigFromEnv() *Config {
-	cfg := &Config{
-		Type: os.Getenv("DB_TYPE"),
-	}
-
-	// Default to firestore if not specified
-	if cfg.Type == "" {
-		cfg.Type = "firestore"
-	}
+	cfg := &Config{}
 
 	// Load PostgreSQL config
 	cfg.Postgres = PostgresConfig{
@@ -42,6 +35,9 @@ func LoadConfigFromEnv() *Config {
 		SSLMode:  getEnvOrDefault("POSTGRES_SSLMODE", "disable"),
 	}
 
+	log.Printf("[Config] PostgreSQL: host=%s, port=%s, user=%s, db=%s",
+		cfg.Postgres.Host, cfg.Postgres.Port, cfg.Postgres.User, cfg.Postgres.Database)
+
 	return cfg
 }
 
@@ -52,41 +48,18 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-// NewRepositories creates repository instances based on configuration
+// NewRepositories creates PostgreSQL repository instances
 func NewRepositories(cfg *Config) (*Repositories, error) {
-	switch cfg.Type {
-	case "firestore":
-		return newFirestoreRepositories()
-	case "postgres":
-		return newPostgresRepositories(&cfg.Postgres)
-	default:
-		return nil, errors.New("unknown database type: " + cfg.Type)
+	if cfg.Postgres.Password == "" {
+		return nil, errors.New("POSTGRES_PASSWORD is required")
 	}
-}
 
-// newFirestoreRepositories creates Firestore-backed repositories
-func newFirestoreRepositories() (*Repositories, error) {
-	client, err := NewFirestoreClient()
+	client, err := NewPostgresClient(&cfg.Postgres)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Repositories{
-		Events:       NewFirestoreEventRepository(client),
-		Interactions: NewFirestoreInteractionRepository(client),
-		Users:        NewFirestoreUserRepository(client),
-		Close: func() error {
-			return client.Close()
-		},
-	}, nil
-}
-
-// newPostgresRepositories creates PostgreSQL-backed repositories
-func newPostgresRepositories(cfg *PostgresConfig) (*Repositories, error) {
-	client, err := NewPostgresClient(cfg)
-	if err != nil {
-		return nil, err
-	}
+	log.Printf("[Repositories] PostgreSQL connection established")
 
 	return &Repositories{
 		Events:       NewPostgresEventRepository(client),

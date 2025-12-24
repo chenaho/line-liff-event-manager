@@ -99,6 +99,23 @@ func (r *PostgresInteractionRepository) CreateWithID(ctx context.Context, eventI
 	rowsAffected, _ := result.RowsAffected()
 	log.Printf("[CreateWithID] Success, rows affected: %d", rowsAffected)
 
+	// Debug: Immediately verify the data was written
+	var count int
+	err = r.client.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM interactions WHERE id = $1", recordID).Scan(&count)
+	if err != nil {
+		log.Printf("[CreateWithID] Debug count query failed: %v", err)
+	} else {
+		log.Printf("[CreateWithID] Debug: Found %d interactions with id=%s", count, recordID)
+	}
+
+	// Also check total for this event
+	err = r.client.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM interactions WHERE event_id = $1", eventID).Scan(&count)
+	if err != nil {
+		log.Printf("[CreateWithID] Debug event count query failed: %v", err)
+	} else {
+		log.Printf("[CreateWithID] Debug: Found %d total interactions for event=%s", count, eventID)
+	}
+
 	return nil
 }
 

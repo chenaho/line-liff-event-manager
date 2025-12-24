@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"log"
 
 	"event-manager/internal/models"
 )
@@ -70,8 +71,12 @@ func (r *PostgresInteractionRepository) CreateWithID(ctx context.Context, eventI
 	}
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
+		log.Printf("[CreateWithID] Failed to marshal payload: %v", err)
 		return err
 	}
+
+	log.Printf("[CreateWithID] Inserting: eventID=%s, recordID=%s, userID=%s, type=%s, payload=%s",
+		eventID, recordID, interaction.UserID, interaction.Type, string(payloadJSON))
 
 	query := `
 		INSERT INTO interactions (id, event_id, user_id, type, user_display_name, user_picture_url, status, timestamp, payload)
@@ -83,10 +88,18 @@ func (r *PostgresInteractionRepository) CreateWithID(ctx context.Context, eventI
 			timestamp = EXCLUDED.timestamp,
 			payload = EXCLUDED.payload
 	`
-	_, err = r.client.DB.ExecContext(ctx, query,
+	result, err := r.client.DB.ExecContext(ctx, query,
 		recordID, eventID, interaction.UserID, interaction.Type, interaction.UserDisplayName,
 		interaction.UserPictureUrl, interaction.Status, interaction.Timestamp, payloadJSON)
-	return err
+	if err != nil {
+		log.Printf("[CreateWithID] ExecContext failed: %v", err)
+		return err
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	log.Printf("[CreateWithID] Success, rows affected: %d", rowsAffected)
+
+	return nil
 }
 
 func (r *PostgresInteractionRepository) GetByEventID(ctx context.Context, eventID string) ([]*models.Interaction, error) {

@@ -137,11 +137,12 @@ const isSelected = (option) => {
 }
 
 const toggleOption = (option) => {
-  if (props.event.config.allowMultiSelect) {
+  const maxVotes = props.event.config.maxVotes || 1
+  if (maxVotes > 1) {
     const index = selected.value.indexOf(option)
     if (index > -1) {
       selected.value.splice(index, 1)
-    } else {
+    } else if (selected.value.length < maxVotes) {
       selected.value.push(option)
     }
   } else {
@@ -157,7 +158,7 @@ const toggleOption = (option) => {
       <span class="text-xs font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded">VOTE</span>
       <h2 class="text-2xl font-bold mt-2 text-gray-800">{{ event.title }}</h2>
       <div class="mt-2 text-xs text-gray-400">
-        {{ event.config.allowMultiSelect ? `複選 (最多 ${event.config.maxVotes || '無限制'} 項)` : '單選' }} • 共 {{ totalVotes }} 票
+        {{ event.config.maxVotes > 1 ? `複選 (最多 ${event.config.maxVotes} 項)` : '單選' }} • 共 {{ totalVotes }} 票
       </div>
       <div v-if="myVote" class="mt-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded inline-block">
         <i class="fas fa-check-circle mr-1"></i>
@@ -203,7 +204,7 @@ const toggleOption = (option) => {
 
         <!-- Voter List Toggle Button -->
         <div 
-          v-if="getVoteCount(option) > 0"
+          v-if="getVoteCount(option) > 0 && event.config.showVoters !== false"
           @click="toggleVoterList(option)"
           class="px-3 py-2 bg-gray-50 border-t border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors flex items-center justify-between text-xs text-gray-600"
         >
@@ -216,7 +217,7 @@ const toggleOption = (option) => {
 
         <!-- Voter List (Expandable) -->
         <div 
-          v-if="expandedOptions[option]" 
+          v-if="expandedOptions[option] && event.config.showVoters !== false" 
           class="px-3 py-2 bg-gray-50 border-t border-gray-100 space-y-2"
         >
           <div 

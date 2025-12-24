@@ -19,8 +19,8 @@ const newEvent = ref({
   type: 'VOTE',
   config: {
     // VOTE defaults
-    allowMultiSelect: false,
     maxVotes: 1,
+    showVoters: true,
     options: [],
     optionsText: '', // For textarea input
     
@@ -416,21 +416,35 @@ const formatDateTime = (dateTimeString) => {
           </div>
 
           <!-- Type Specific Config -->
-          <div v-if="newEvent.type === 'VOTE'" class="space-y-2 border-t pt-4">
-            <label class="block text-sm font-medium text-gray-700">Options (One per line)</label>
-            <textarea 
-              v-model="newEvent.config.optionsText" 
-              rows="4" 
-              class="w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Option 1&#10;Option 2&#10;Option 3"
-            ></textarea>
+          <div v-if="newEvent.type === 'VOTE'" class="space-y-3 border-t pt-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Options (One per line)</label>
+              <textarea 
+                v-model="newEvent.config.optionsText" 
+                rows="4" 
+                class="w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Option 1&#10;Option 2&#10;Option 3"
+              ></textarea>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">可投票數</label>
+              <input 
+                type="number" 
+                v-model.number="newEvent.config.maxVotes" 
+                min="1"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+              <p class="text-xs text-gray-500 mt-1">設定每位用戶可投幾票 (1 = 單選，大於 1 = 複選)</p>
+            </div>
             <div class="flex items-center">
               <input 
-                v-model="newEvent.config.allowMultiSelect" 
+                v-model="newEvent.config.showVoters" 
                 type="checkbox" 
                 class="mr-2 w-4 h-4 text-blue-600"
+                id="showVoters"
               >
-              <span class="text-sm text-gray-700">Allow Multi-select</span>
+              <label for="showVoters" class="text-sm text-gray-700">顯示投票者</label>
+              <span class="text-xs text-gray-500 ml-2">(關閉則為匿名投票)</span>
             </div>
           </div>
 
@@ -560,13 +574,35 @@ const formatDateTime = (dateTimeString) => {
           </div>
 
           <!-- VOTE Config -->
-          <div v-if="editingEvent.type === 'VOTE'" class="space-y-2 border-t pt-4">
-            <label class="block text-sm font-medium text-gray-700">Options (One per line)</label>
-            <textarea 
-              v-model="editingEvent.config.optionsText" 
-              rows="4" 
-              class="w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            ></textarea>
+          <div v-if="editingEvent.type === 'VOTE'" class="space-y-3 border-t pt-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Options (One per line)</label>
+              <textarea 
+                v-model="editingEvent.config.optionsText" 
+                rows="4" 
+                class="w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              ></textarea>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">可投票數</label>
+              <input 
+                type="number" 
+                v-model.number="editingEvent.config.maxVotes" 
+                min="1"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+              <p class="text-xs text-gray-500 mt-1">設定每位用戶可投幾票 (1 = 單選，大於 1 = 複選)</p>
+            </div>
+            <div class="flex items-center">
+              <input 
+                v-model="editingEvent.config.showVoters" 
+                type="checkbox" 
+                class="mr-2 w-4 h-4 text-blue-600"
+                id="editShowVoters"
+              >
+              <label for="editShowVoters" class="text-sm text-gray-700">顯示投票者</label>
+              <span class="text-xs text-gray-500 ml-2">(關閉則為匿名投票)</span>
+            </div>
           </div>
 
           <!-- LINEUP Config -->

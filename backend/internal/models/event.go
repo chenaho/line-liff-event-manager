@@ -12,9 +12,9 @@ const (
 
 type EventConfig struct {
 	// VOTE
-	AllowMultiSelect bool     `json:"allowMultiSelect,omitempty" firestore:"allowMultiSelect,omitempty"`
-	MaxVotes         int      `json:"maxVotes,omitempty" firestore:"maxVotes,omitempty"`
-	Options          []string `json:"options,omitempty" firestore:"options,omitempty"`
+	MaxVotes   int      `json:"maxVotes,omitempty" firestore:"maxVotes,omitempty"`     // 1 = single select, >1 = multi-select
+	ShowVoters *bool    `json:"showVoters,omitempty" firestore:"showVoters,omitempty"` // true = show voters, false = anonymous (pointer to distinguish unset from false)
+	Options    []string `json:"options,omitempty" firestore:"options,omitempty"`
 
 	// LINEUP
 	MaxParticipants int       `json:"maxParticipants,omitempty" firestore:"maxParticipants,omitempty"`

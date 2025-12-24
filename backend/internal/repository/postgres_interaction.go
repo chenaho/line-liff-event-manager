@@ -108,6 +108,15 @@ func (r *PostgresInteractionRepository) CreateWithID(ctx context.Context, eventI
 		log.Printf("[CreateWithID] Debug: Found %d interactions with id=%s", count, recordID)
 	}
 
+	// Debug: Check what event_id is actually stored
+	var storedEventID string
+	err = r.client.DB.QueryRowContext(ctx, "SELECT event_id FROM interactions WHERE id = $1", recordID).Scan(&storedEventID)
+	if err != nil {
+		log.Printf("[CreateWithID] Debug: Failed to get stored event_id: %v", err)
+	} else {
+		log.Printf("[CreateWithID] Debug: Stored event_id='%s', expected='%s', match=%v", storedEventID, eventID, storedEventID == eventID)
+	}
+
 	// Also check total for this event
 	err = r.client.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM interactions WHERE event_id = $1", eventID).Scan(&count)
 	if err != nil {

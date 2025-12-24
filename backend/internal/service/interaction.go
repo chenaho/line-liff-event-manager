@@ -52,7 +52,9 @@ func (s *InteractionService) HandleAction(ctx context.Context, eventID string, a
 }
 
 func (s *InteractionService) handleVote(ctx context.Context, eventID string, action *models.Interaction) error {
-	return s.Repo.CreateWithID(ctx, eventID, action.UserID, action)
+	// Use composite ID: eventID_userID to ensure one vote per user per event
+	recordID := eventID + "_" + action.UserID
+	return s.Repo.CreateWithID(ctx, eventID, recordID, action)
 }
 
 func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, action *models.Interaction) error {

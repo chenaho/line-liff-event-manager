@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -49,8 +50,15 @@ func (h *InteractionHandler) HandleAction(c *gin.Context) {
 	}
 	if val, ok := req.Payload["selectedOptions"].([]interface{}); ok {
 		for _, v := range val {
-			if s, ok := v.(string); ok {
-				interaction.SelectedOptions = append(interaction.SelectedOptions, s)
+			switch opt := v.(type) {
+			case string:
+				interaction.SelectedOptions = append(interaction.SelectedOptions, opt)
+			case float64:
+				// Handle numeric options (JSON numbers are float64)
+				interaction.SelectedOptions = append(interaction.SelectedOptions, fmt.Sprintf("%v", int(opt)))
+			default:
+				// Fallback: convert to string
+				interaction.SelectedOptions = append(interaction.SelectedOptions, fmt.Sprintf("%v", v))
 			}
 		}
 	}

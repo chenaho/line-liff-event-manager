@@ -103,17 +103,22 @@ func (r *PostgresInteractionRepository) CreateWithID(ctx context.Context, eventI
 }
 
 func (r *PostgresInteractionRepository) GetByEventID(ctx context.Context, eventID string) ([]*models.Interaction, error) {
+	log.Printf("[GetByEventID] Querying for eventID: %s", eventID)
+
 	query := `
 		SELECT id, user_id, type, user_display_name, user_picture_url, status, timestamp, payload
 		FROM interactions WHERE event_id = $1 ORDER BY timestamp ASC
 	`
 	rows, err := r.client.DB.QueryContext(ctx, query, eventID)
 	if err != nil {
+		log.Printf("[GetByEventID] Query error: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
 
-	return r.scanInteractions(rows)
+	result, err := r.scanInteractions(rows)
+	log.Printf("[GetByEventID] Found %d interactions for eventID: %s", len(result), eventID)
+	return result, err
 }
 
 func (r *PostgresInteractionRepository) GetByUserAndType(ctx context.Context, eventID, userID string, iType models.InteractionType) ([]*models.Interaction, error) {
@@ -217,13 +222,16 @@ func (r *PostgresInteractionRepository) Delete(ctx context.Context, eventID, rec
 
 func (r *PostgresInteractionRepository) scanInteractions(rows *sql.Rows) ([]*models.Interaction, error) {
 	interactions := make([]*models.Interaction, 0)
+	rowCount := 0
 
 	for rows.Next() {
+		rowCount++
 		var interaction models.Interaction
 		var payloadJSON []byte
 		var displayName, pictureUrl, status sql.NullString
 
 		if err := rows.Scan(&interaction.ID, &interaction.UserID, &interaction.Type, &displayName, &pictureUrl, &status, &interaction.Timestamp, &payloadJSON); err != nil {
+			log.Printf("[scanInteractions] Row %d scan error: %v", rowCount, err)
 			continue
 		}
 
@@ -239,6 +247,7 @@ func (r *PostgresInteractionRepository) scanInteractions(rows *sql.Rows) ([]*mod
 
 		var payload interactionPayload
 		if err := json.Unmarshal(payloadJSON, &payload); err != nil {
+			log.Printf("[scanInteractions] Row %d unmarshal error: %v, payload: %s", rowCount, err, string(payloadJSON))
 			continue
 		}
 
@@ -252,5 +261,6 @@ func (r *PostgresInteractionRepository) scanInteractions(rows *sql.Rows) ([]*mod
 		interactions = append(interactions, &interaction)
 	}
 
+	log.Printf("[scanInteractions] Processed %d rows, returned %d interactions", rowCount, len(interactions))
 	return interactions, nil
 }

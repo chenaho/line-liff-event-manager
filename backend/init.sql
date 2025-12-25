@@ -21,7 +21,7 @@ CREATE INDEX IF NOT EXISTS idx_events_is_archived ON events(is_archived);
 
 -- Interactions table (like Firestore subcollection)
 CREATE TABLE IF NOT EXISTS interactions (
-    id                  VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    id                  VARCHAR(100) PRIMARY KEY DEFAULT gen_random_uuid()::text,
     event_id            VARCHAR(36) NOT NULL REFERENCES events(event_id) ON DELETE CASCADE,
     user_id             VARCHAR(50) NOT NULL,
     type                VARCHAR(20) NOT NULL CHECK (type IN ('VOTE', 'LINEUP', 'MEMO')),

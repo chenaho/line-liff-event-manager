@@ -171,6 +171,47 @@ const cancelNoteEdit = () => {
   editingNoteValue.value = ''
   editingRecordId.value = null
 }
+
+// Export to clipboard
+const exportToClipboard = async () => {
+  const maxParticipants = props.event.config.maxParticipants
+  let text = `[${props.event.title}] - 人數上限:${maxParticipants}\n`
+  
+  // Main participants list
+  for (let i = 0; i < maxParticipants; i++) {
+    const num = String(i + 1).padStart(2, '0')
+    if (i < participants.value.length) {
+      const p = participants.value[i]
+      const noteText = p.note ? `-${p.note}` : ''
+      text += `${num}. ${p.displayName}${noteText}\n`
+    } else {
+      text += `${num}.\n`
+    }
+  }
+  
+  // Waitlist
+  if (waitlist.value.length > 0 || props.event.config.waitlistLimit > 0) {
+    text += `--候補--\n`
+    const waitlistLimit = props.event.config.waitlistLimit || waitlist.value.length
+    for (let i = 0; i < Math.max(waitlistLimit, waitlist.value.length); i++) {
+      const num = String(i + 1).padStart(2, '0')
+      if (i < waitlist.value.length) {
+        const p = waitlist.value[i]
+        const noteText = p.note ? `-${p.note}` : ''
+        text += `${num}. ${p.displayName}${noteText}\n`
+      } else {
+        text += `${num}.\n`
+      }
+    }
+  }
+  
+  try {
+    await navigator.clipboard.writeText(text)
+    showToast('已複製到剪貼簿！')
+  } catch (e) {
+    showToast('複製失敗: ' + e.message)
+  }
+}
 </script>
 
 <template>
@@ -330,6 +371,17 @@ const cancelNoteEdit = () => {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Export Button -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+      <button 
+        @click="exportToClipboard"
+        class="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+      >
+        <i class="fas fa-copy"></i>
+        匯出報名狀態
+      </button>
     </div>
 
     <!-- Edit Note Modal -->

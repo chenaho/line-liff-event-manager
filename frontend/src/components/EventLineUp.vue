@@ -111,10 +111,10 @@ const getMaskedName = (person) => {
   // In privacy mode, mask name
   if (isPrivacyMode.value) {
     const name = person.displayName || 'Unknown'
-    if (name.length <= 2) {
+    if (name.length <= 6) {
       return name.charAt(0) + '*'
     }
-    return name.substring(0, 2) + '...'
+    return name.substring(0, 6) + '...'
   }
   // Normal mode: show full name, truncate if too long
   const name = person.displayName || 'Unknown'

@@ -88,6 +88,42 @@ const waitlist = computed(() => {
     }))
 })
 
+// Privacy mode settings
+const isPrivacyMode = computed(() => props.event.config.privacyMode === true)
+
+const getDisplayAvatar = (person) => {
+  // In privacy mode, always use generated avatar
+  if (isPrivacyMode.value && !person.isMe) {
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(person.userId)}`
+  }
+  // Normal mode: use actual picture or fallback
+  if (person.pictureUrl) {
+    return person.pictureUrl + '/small'
+  }
+  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(person.displayName)}`
+}
+
+const getMaskedName = (person) => {
+  // Show full name for self
+  if (person.isMe) {
+    return person.displayName
+  }
+  // In privacy mode, mask name
+  if (isPrivacyMode.value) {
+    const name = person.displayName || 'Unknown'
+    if (name.length <= 2) {
+      return name.charAt(0) + '*'
+    }
+    return name.substring(0, 2) + '...'
+  }
+  // Normal mode: show full name, truncate if too long
+  const name = person.displayName || 'Unknown'
+  if (name.length > 10) {
+    return name.substring(0, 10) + '...'
+  }
+  return name
+}
+
 const getAvatarUrl = (person) => {
   // Prioritize LINE pictureUrl with /small suffix
   if (person.pictureUrl) {
@@ -311,14 +347,14 @@ const exportToClipboard = async () => {
           <div class="flex items-center gap-3">
             <span class="text-sm font-bold text-gray-400 w-6">{{ index + 1 }}</span>
             <img 
-              :src="getAvatarUrl(participant)" 
+              :src="getDisplayAvatar(participant)" 
               class="w-10 h-10 rounded-full bg-gray-200 border-2"
               :class="participant.isMe ? 'border-blue-500' : 'border-gray-300'"
-              :alt="participant.displayName"
+              :alt="getMaskedName(participant)"
             >
-            <div class="flex-1">
-              <div class="font-medium text-gray-800">
-                {{ participant.displayName }}
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-gray-800 truncate">
+                {{ getMaskedName(participant) }}
                 <span v-if="participant.isMe" class="text-blue-600 text-xs ml-1">(您)</span>
               </div>
               <div v-if="participant.note" class="text-xs text-gray-500 mt-0.5">
@@ -352,14 +388,14 @@ const exportToClipboard = async () => {
           <div class="flex items-center gap-3">
             <span class="text-sm font-bold text-gray-400 w-6">{{ index + 1 }}</span>
             <img 
-              :src="getAvatarUrl(person)" 
+              :src="getDisplayAvatar(person)" 
               class="w-10 h-10 rounded-full bg-gray-200 border-2"
               :class="person.isMe ? 'border-orange-500' : 'border-gray-300'"
-              :alt="person.displayName"
+              :alt="getMaskedName(person)"
             >
-            <div class="flex-1">
-              <div class="font-medium text-gray-800">
-                {{ person.displayName }}
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-gray-800 truncate">
+                {{ getMaskedName(person) }}
                 <span v-if="person.isMe" class="text-orange-600 text-xs ml-1">(您)</span>
               </div>
               <div v-if="person.note" class="text-xs text-gray-500 mt-0.5">

@@ -20,6 +20,7 @@ type EventConfig struct {
 	MaxParticipants int       `json:"maxParticipants,omitempty" firestore:"maxParticipants,omitempty"`
 	WaitlistLimit   int       `json:"waitlistLimit,omitempty" firestore:"waitlistLimit,omitempty"`
 	MaxCountPerUser int       `json:"maxCountPerUser,omitempty" firestore:"maxCountPerUser,omitempty"`
+	PrivacyMode     bool      `json:"privacyMode,omitempty" firestore:"privacyMode,omitempty"` // Hide full name and use avatar
 	StartTime       time.Time `json:"startTime,omitempty" firestore:"startTime,omitempty"`
 	EndTime         time.Time `json:"endTime,omitempty" firestore:"endTime,omitempty"`
 

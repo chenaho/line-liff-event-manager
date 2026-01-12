@@ -28,6 +28,7 @@ const newEvent = ref({
     maxParticipants: 10,
     waitlistLimit: 5,
     maxCountPerUser: 1,
+    privacyMode: false,
     
     // MEMO defaults
     maxCommentsPerUser: 3,
@@ -477,6 +478,16 @@ const formatDateTime = (dateTimeString) => {
                 class="w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
             </div>
+            <div class="flex items-center">
+              <input 
+                v-model="newEvent.config.privacyMode" 
+                type="checkbox" 
+                class="mr-2 w-4 h-4 text-blue-600"
+                id="newPrivacyMode"
+              >
+              <label for="newPrivacyMode" class="text-sm text-gray-700">隱私模式</label>
+              <span class="text-xs text-gray-500 ml-2">(隱藏頭像和部分名字)</span>
+            </div>
           </div>
 
           <div v-if="newEvent.type === 'MEMO'" class="space-y-3 border-t pt-4">
@@ -632,6 +643,16 @@ const formatDateTime = (dateTimeString) => {
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 min="0"
               >
+            </div>
+            <div class="flex items-center">
+              <input 
+                v-model="editingEvent.config.privacyMode" 
+                type="checkbox" 
+                class="mr-2 w-4 h-4 text-blue-600"
+                id="editPrivacyMode"
+              >
+              <label for="editPrivacyMode" class="text-sm text-gray-700">隱私模式</label>
+              <span class="text-xs text-gray-500 ml-2">(隱藏頭像和部分名字)</span>
             </div>
           </div>
 

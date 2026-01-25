@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useEventStore } from '../stores/event'
 import EventVote from '../components/EventVote.vue'
 import EventLineUp from '../components/EventLineUp.vue'
@@ -8,22 +8,40 @@ import EventMemo from '../components/EventMemo.vue'
 import Toast from '../components/Toast.vue'
 
 const route = useRoute()
+const router = useRouter()
 const eventStore = useEventStore()
-const eventId = route.params.id
 
 const event = ref(null)
 const status = ref(null)
+const notFound = ref(false)
 let pollInterval = null
 
 onMounted(async () => {
-  event.value = await eventStore.fetchEvent(eventId)
+  const eventId = route.params.id
+  const tagId = route.query.tagId
+
+  // If tagId is provided, fetch event by tag
+  if (tagId) {
+    event.value = await eventStore.fetchEventByTag(tagId)
+    if (!event.value) {
+      notFound.value = true
+      return
+    }
+    // Redirect to the actual event URL for consistency
+    router.replace({ name: 'event', params: { id: event.value.eventId } })
+  } else if (eventId) {
+    event.value = await eventStore.fetchEvent(eventId)
+  }
+
   if (event.value) {
-    status.value = await eventStore.fetchEventStatus(eventId)
+    status.value = await eventStore.fetchEventStatus(event.value.eventId)
     
     // Poll for status updates
     pollInterval = setInterval(async () => {
-      status.value = await eventStore.fetchEventStatus(eventId)
+      status.value = await eventStore.fetchEventStatus(event.value.eventId)
     }, 5000)
+  } else {
+    notFound.value = true
   }
 })
 
@@ -89,6 +107,13 @@ const formatDateTime = (dateTimeString) => {
     </div>
 
     <Toast />
+  </div>
+  <div v-else-if="notFound" class="p-4 text-center text-gray-500 min-h-screen flex items-center justify-center">
+    <div>
+      <i class="fas fa-exclamation-circle text-4xl mb-4 text-red-400"></i>
+      <p class="text-lg font-medium">找不到活動</p>
+      <p class="text-sm mt-2">請確認網址是否正確</p>
+    </div>
   </div>
   <div v-else class="p-4 text-center text-gray-500 min-h-screen flex items-center justify-center">
     <div>

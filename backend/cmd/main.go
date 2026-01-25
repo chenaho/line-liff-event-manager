@@ -77,6 +77,7 @@ func main() {
 		// Events
 		protectedGroup.POST("/events", eventHandler.CreateEvent)
 		protectedGroup.GET("/events", eventHandler.ListEvents)
+		protectedGroup.GET("/events/by-tag", eventHandler.GetEventByTag)
 		protectedGroup.GET("/events/:id", eventHandler.GetEvent)
 		protectedGroup.GET("/events/:id/status", interactionHandler.GetEventStatus)
 		protectedGroup.POST("/events/:id/action", interactionHandler.HandleAction)

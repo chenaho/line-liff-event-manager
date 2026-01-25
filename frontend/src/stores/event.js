@@ -84,6 +84,20 @@ export const useEventStore = defineStore('event', {
                 this.loading = false
             }
         },
+        async fetchEventByTag(tag) {
+            this.loading = true
+            try {
+                const response = await axios.get(`/api/events/by-tag?tag=${encodeURIComponent(tag)}`)
+                this.currentEvent = response.data
+                return response.data
+            } catch (err) {
+                this.error = 'Fetch Event by Tag Failed: ' + err.message
+                console.error(err)
+                return null
+            } finally {
+                this.loading = false
+            }
+        },
         async submitAction(eventId, type, payload) {
             try {
                 await axios.post(`/api/events/${eventId}/action`, { type, payload })

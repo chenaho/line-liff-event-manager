@@ -120,3 +120,19 @@ func (h *EventHandler) ArchiveEvent(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"status": "updated", "isArchived": req.IsArchived})
 }
+
+func (h *EventHandler) GetEventByTag(c *gin.Context) {
+	tag := c.Query("tag")
+	if tag == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tag parameter is required"})
+		return
+	}
+
+	event, err := h.Service.GetEventByTag(c.Request.Context(), tag)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No event found with this tag"})
+		return
+	}
+
+	c.JSON(http.StatusOK, event)
+}

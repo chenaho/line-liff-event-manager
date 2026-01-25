@@ -33,6 +33,7 @@ type Event struct {
 	EventID    string      `json:"eventId" firestore:"eventId"`
 	Type       EventType   `json:"type" firestore:"type"`
 	Title      string      `json:"title" firestore:"title"`
+	Tag        string      `json:"tag,omitempty" firestore:"tag,omitempty"` // Optional tag for URL-based lookup
 	IsActive   bool        `json:"isActive" firestore:"isActive"`
 	IsArchived bool        `json:"isArchived" firestore:"isArchived"`
 	CreatedBy  string      `json:"createdBy" firestore:"createdBy"`

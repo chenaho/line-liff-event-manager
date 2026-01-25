@@ -65,24 +65,24 @@ func (r *PostgresEventRepository) Create(ctx context.Context, event *models.Even
 	}
 
 	query := `
-		INSERT INTO events (event_id, type, title, is_active, created_by, created_at, config)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO events (event_id, type, title, tag, is_active, created_by, created_at, config)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 	_, err = r.client.DB.ExecContext(ctx, query,
-		event.EventID, event.Type, event.Title, event.IsActive, event.CreatedBy, event.CreatedAt, configJSON)
+		event.EventID, event.Type, event.Title, event.Tag, event.IsActive, event.CreatedBy, event.CreatedAt, configJSON)
 	return err
 }
 
 func (r *PostgresEventRepository) GetByID(ctx context.Context, eventID string) (*models.Event, error) {
 	query := `
-		SELECT event_id, type, title, is_active, created_by, created_at, config
+		SELECT event_id, type, title, COALESCE(tag, ''), is_active, COALESCE(is_archived, false), created_by, created_at, config
 		FROM events WHERE event_id = $1
 	`
 	var event models.Event
 	var configJSON []byte
 
 	err := r.client.DB.QueryRowContext(ctx, query, eventID).Scan(
-		&event.EventID, &event.Type, &event.Title, &event.IsActive, &event.CreatedBy, &event.CreatedAt, &configJSON)
+		&event.EventID, &event.Type, &event.Title, &event.Tag, &event.IsActive, &event.IsArchived, &event.CreatedBy, &event.CreatedAt, &configJSON)
 	if err != nil {
 		return nil, err
 	}
@@ -102,11 +102,11 @@ func (r *PostgresEventRepository) Update(ctx context.Context, event *models.Even
 
 	query := `
 		UPDATE events 
-		SET type = $2, title = $3, is_active = $4, config = $5
+		SET type = $2, title = $3, tag = $4, is_active = $5, config = $6
 		WHERE event_id = $1
 	`
 	_, err = r.client.DB.ExecContext(ctx, query,
-		event.EventID, event.Type, event.Title, event.IsActive, configJSON)
+		event.EventID, event.Type, event.Title, event.Tag, event.IsActive, configJSON)
 	return err
 }
 
@@ -124,7 +124,7 @@ func (r *PostgresEventRepository) UpdateArchived(ctx context.Context, eventID st
 
 func (r *PostgresEventRepository) List(ctx context.Context, limit int) ([]*models.Event, error) {
 	query := `
-		SELECT event_id, type, title, is_active, COALESCE(is_archived, false), created_by, created_at, config
+		SELECT event_id, type, title, COALESCE(tag, ''), is_active, COALESCE(is_archived, false), created_by, created_at, config
 		FROM events ORDER BY created_at DESC LIMIT $1
 	`
 	rows, err := r.client.DB.QueryContext(ctx, query, limit)
@@ -138,7 +138,7 @@ func (r *PostgresEventRepository) List(ctx context.Context, limit int) ([]*model
 		var event models.Event
 		var configJSON []byte
 
-		if err := rows.Scan(&event.EventID, &event.Type, &event.Title, &event.IsActive, &event.IsArchived, &event.CreatedBy, &event.CreatedAt, &configJSON); err != nil {
+		if err := rows.Scan(&event.EventID, &event.Type, &event.Title, &event.Tag, &event.IsActive, &event.IsArchived, &event.CreatedBy, &event.CreatedAt, &configJSON); err != nil {
 			continue
 		}
 		if err := json.Unmarshal(configJSON, &event.Config); err != nil {
@@ -148,4 +148,26 @@ func (r *PostgresEventRepository) List(ctx context.Context, limit int) ([]*model
 	}
 
 	return events, nil
+}
+
+// GetByTag returns the most recently created event with the specified tag
+func (r *PostgresEventRepository) GetByTag(ctx context.Context, tag string) (*models.Event, error) {
+	query := `
+		SELECT event_id, type, title, COALESCE(tag, ''), is_active, COALESCE(is_archived, false), created_by, created_at, config
+		FROM events WHERE tag = $1 ORDER BY created_at DESC LIMIT 1
+	`
+	var event models.Event
+	var configJSON []byte
+
+	err := r.client.DB.QueryRowContext(ctx, query, tag).Scan(
+		&event.EventID, &event.Type, &event.Title, &event.Tag, &event.IsActive, &event.IsArchived, &event.CreatedBy, &event.CreatedAt, &configJSON)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(configJSON, &event.Config); err != nil {
+		return nil, err
+	}
+
+	return &event, nil
 }

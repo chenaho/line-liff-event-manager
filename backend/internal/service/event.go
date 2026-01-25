@@ -64,3 +64,7 @@ func (s *EventService) ListEvents(ctx context.Context, limit int) ([]*models.Eve
 func (s *EventService) ArchiveEvent(ctx context.Context, eventID string, isArchived bool) error {
 	return s.Repo.UpdateArchived(ctx, eventID, isArchived)
 }
+
+func (s *EventService) GetEventByTag(ctx context.Context, tag string) (*models.Event, error) {
+	return s.Repo.GetByTag(ctx, tag)
+}

@@ -16,6 +16,7 @@ const showArchived = ref(false)
 
 const newEvent = ref({
   title: '',
+  tag: '',
   type: 'VOTE',
   config: {
     // VOTE defaults
@@ -386,6 +387,19 @@ const formatDateTime = (dateTimeString) => {
             </select>
           </div>
 
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              <i class="fas fa-tag mr-1"></i>Tag (選填)
+            </label>
+            <input 
+              v-model="newEvent.tag" 
+              type="text" 
+              class="w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="例如：weekly-baseball"
+            >
+            <p class="text-xs text-gray-500 mt-1">設定 Tag 後可使用 ?tagId=xxx 的網址快速開啟最新活動</p>
+          </div>
+
           <!-- Time Range (Optional) -->
           <div class="border-t pt-4 space-y-3">
             <label class="block text-sm font-medium text-gray-700">
@@ -556,6 +570,19 @@ const formatDateTime = (dateTimeString) => {
               <option value="MEMO">Memo</option>
             </select>
             <p class="text-xs text-gray-500 mt-1">類型無法修改</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              <i class="fas fa-tag mr-1"></i>Tag (選填)
+            </label>
+            <input 
+              v-model="editingEvent.tag" 
+              type="text" 
+              class="w-full border border-gray-300 rounded-lg shadow-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="例如：weekly-baseball"
+            >
+            <p class="text-xs text-gray-500 mt-1">設定 Tag 後可使用 ?tagId=xxx 的網址快速開啟最新活動</p>
           </div>
 
           <!-- Time Range -->

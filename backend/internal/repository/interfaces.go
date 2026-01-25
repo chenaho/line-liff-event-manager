@@ -10,6 +10,7 @@ import (
 type EventRepository interface {
 	Create(ctx context.Context, event *models.Event) error
 	GetByID(ctx context.Context, eventID string) (*models.Event, error)
+	GetByTag(ctx context.Context, tag string) (*models.Event, error)
 	Update(ctx context.Context, event *models.Event) error
 	UpdateStatus(ctx context.Context, eventID string, isActive bool) error
 	UpdateArchived(ctx context.Context, eventID string, isArchived bool) error

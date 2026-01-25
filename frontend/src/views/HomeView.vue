@@ -26,6 +26,7 @@ onMounted(() => {
   console.log('HomeView mounted')
   console.log('Query params:', route.query)
   console.log('EventId from query:', route.query.eventId)
+  console.log('TagId from query:', route.query.tagId)
   
   if (!authStore.isLiffInitialized) {
     authStore.initLiff()
@@ -34,16 +35,22 @@ onMounted(() => {
 
 watch(() => authStore.user, (user) => {
   if (user) {
-    // Check if there's an eventId in the query parameters
+    // Check if there's an eventId or tagId in the query parameters
     const eventId = route.query.eventId
+    const tagId = route.query.tagId
     
     console.log('User logged in:', user.lineDisplayName)
     console.log('User role:', user.role)
     console.log('EventId from query:', eventId)
+    console.log('TagId from query:', tagId)
     
     if (eventId) {
       console.log('Redirecting to event:', eventId)
       router.push(`/event/${eventId}`)
+    } else if (tagId) {
+      console.log('Redirecting to event by tag:', tagId)
+      // Use a placeholder event ID and pass tagId as query param
+      router.push({ path: '/event/by-tag', query: { tagId } })
     } else if (user.role === 'admin') {
       console.log('Redirecting to admin dashboard')
       router.push('/admin')

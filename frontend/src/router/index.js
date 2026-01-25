@@ -18,6 +18,11 @@ const router = createRouter({
             // meta: { requiresAuth: true, requiresAdmin: true } // Add guard later
         },
         {
+            path: '/event/by-tag',
+            name: 'eventByTag',
+            component: EventView
+        },
+        {
             path: '/event/:id',
             name: 'event',
             component: EventView

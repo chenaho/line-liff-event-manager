@@ -32,10 +32,14 @@ func main() {
 	// Initialize cache service with 30-second TTL
 	cacheService := service.NewCacheService(30 * time.Second)
 
+	// Initialize Slack service for notifications
+	slackService := service.NewSlackService()
+
 	// Initialize services
 	eventService := service.NewEventService(repos.Events)
 	authService := service.NewAuthService(repos.Users)
 	interactionService := service.NewInteractionService(repos.Interactions, repos.Events, repos.Users, cacheService)
+	interactionService.Slack = slackService
 
 	// Initialize Handlers
 	authHandler := api.NewAuthHandler(authService)

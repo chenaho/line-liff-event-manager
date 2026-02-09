@@ -16,6 +16,7 @@ type InteractionService struct {
 	Events repository.EventRepository
 	Users  repository.UserRepository
 	Cache  *CacheService
+	Slack  *SlackService
 }
 
 // NewInteractionService creates an InteractionService with repository
@@ -116,6 +117,10 @@ func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, a
 
 		action.Timestamp = time.Now()
 		_, err := s.Repo.Create(ctx, eventID, action)
+		if err == nil && s.Slack != nil {
+			// Send Slack notification asynchronously
+			go s.Slack.SendLineUpNotification(event.Title, action.UserDisplayName, "register", action.Status, action.Note)
+		}
 		return err
 
 	} else if action.Count < 0 {
@@ -139,10 +144,15 @@ func (s *InteractionService) handleLineUp(ctx context.Context, eventID string, a
 		}
 
 		now := time.Now()
-		return s.Repo.Update(ctx, eventID, latestRecord.ID, map[string]interface{}{
+		err = s.Repo.Update(ctx, eventID, latestRecord.ID, map[string]interface{}{
 			"status":      "CANCELLED",
 			"cancelledAt": now,
 		})
+		if err == nil && s.Slack != nil {
+			// Send Slack notification asynchronously
+			go s.Slack.SendLineUpNotification(event.Title, action.UserDisplayName, "cancel", "CANCELLED", latestRecord.Note)
+		}
+		return err
 	}
 
 	return errors.New("invalid count value")

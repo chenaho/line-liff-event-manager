@@ -50,6 +50,13 @@ CREATE TABLE IF NOT EXISTS users (
     created_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Settings table (key-value store for app configuration)
+CREATE TABLE IF NOT EXISTS settings (
+    key             VARCHAR(100) PRIMARY KEY,
+    value           TEXT NOT NULL,
+    updated_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Comments to document JSONB field structure
 COMMENT ON COLUMN events.config IS 'JSON structure: {
     "allowMultiSelect": boolean,

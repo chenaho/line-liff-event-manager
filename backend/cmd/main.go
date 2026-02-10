@@ -32,10 +32,9 @@ func main() {
 	// Initialize cache service with 30-second TTL
 	cacheService := service.NewCacheService(30 * time.Second)
 
-	// Initialize Slack service for notifications
-	slackService := service.NewSlackService()
-
 	// Initialize services
+	settingsService := service.NewSettingsService(repos.Settings)
+	slackService := service.NewSlackService(settingsService)
 	eventService := service.NewEventService(repos.Events)
 	authService := service.NewAuthService(repos.Users)
 	interactionService := service.NewInteractionService(repos.Interactions, repos.Events, repos.Users, cacheService)
@@ -45,6 +44,7 @@ func main() {
 	authHandler := api.NewAuthHandler(authService)
 	eventHandler := api.NewEventHandler(eventService)
 	interactionHandler := api.NewInteractionHandler(interactionService)
+	settingsHandler := api.NewSettingsHandler(settingsService)
 
 	r := gin.Default()
 
@@ -93,6 +93,10 @@ func main() {
 		protectedGroup.PATCH("/events/:id/records/:recordId/note", interactionHandler.UpdateRegistrationNote)
 		protectedGroup.PATCH("/events/:id/records/:recordId/content", interactionHandler.UpdateMemoContent)
 		protectedGroup.POST("/events/:id/records/:recordId/clap", interactionHandler.IncrementClapCount)
+
+		// Settings (admin only)
+		protectedGroup.GET("/settings", settingsHandler.GetSettings)
+		protectedGroup.PUT("/settings", settingsHandler.UpdateSetting)
 	}
 
 	port := os.Getenv("PORT")

@@ -2,16 +2,20 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"os"
 )
 
+const SettingsKeySlackWebhookURL = "slack_webhook_url"
+
 // SlackService handles Slack webhook notifications
-type SlackService struct{}
+type SlackService struct {
+	Settings *SettingsService
+}
 
 // SlackMessage represents a Slack webhook message
 type SlackMessage struct {
@@ -29,24 +33,27 @@ type Attachment struct {
 }
 
 // NewSlackService creates a new SlackService
-func NewSlackService() *SlackService {
-	url := os.Getenv("SLACK_WEBHOOK_URL")
-	if url == "" {
-		log.Println("[Slack] WARNING: SLACK_WEBHOOK_URL not set, notifications will be disabled")
-	} else {
-		log.Println("[Slack] Service initialized with webhook URL configured")
-	}
-	return &SlackService{}
+func NewSlackService(settings *SettingsService) *SlackService {
+	return &SlackService{Settings: settings}
 }
 
-// getWebhookURL reads the webhook URL from env each time so updates take effect without restart
+// getWebhookURL reads the webhook URL from database settings
 func (s *SlackService) getWebhookURL() string {
-	return os.Getenv("SLACK_WEBHOOK_URL")
+	if s.Settings == nil {
+		return ""
+	}
+	url, err := s.Settings.Get(context.Background(), SettingsKeySlackWebhookURL)
+	if err != nil {
+		log.Printf("[Slack] Failed to get webhook URL from settings: %v", err)
+		return ""
+	}
+	return url
 }
 
 // SendLineUpNotification sends a notification for lineup status changes
 func (s *SlackService) SendLineUpNotification(eventTitle, userName, action, status string, note string) error {
-	if s.getWebhookURL() == "" {
+	webhookURL := s.getWebhookURL()
+	if webhookURL == "" {
 		log.Println("[Slack] No webhook URL configured, skipping notification")
 		return nil
 	}
@@ -91,7 +98,7 @@ func (s *SlackService) SendLineUpNotification(eventTitle, userName, action, stat
 		},
 	}
 
-	return s.sendMessage(msg)
+	return s.sendMessage(webhookURL, msg)
 }
 
 func getActionVerb(action string) string {
@@ -105,13 +112,7 @@ func getActionVerb(action string) string {
 	}
 }
 
-func (s *SlackService) sendMessage(msg SlackMessage) error {
-	webhookURL := s.getWebhookURL()
-	if webhookURL == "" {
-		log.Println("[Slack] No webhook URL configured, skipping")
-		return nil
-	}
-
+func (s *SlackService) sendMessage(webhookURL string, msg SlackMessage) error {
 	jsonData, err := json.Marshal(msg)
 	if err != nil {
 		log.Printf("[Slack] Failed to marshal message: %v", err)
@@ -128,7 +129,7 @@ func (s *SlackService) sendMessage(msg SlackMessage) error {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		log.Printf("[Slack] Webhook returned status: %d, body: %s, url_prefix: %s", resp.StatusCode, string(body), webhookURL[:50])
+		log.Printf("[Slack] Webhook returned status: %d, body: %s", resp.StatusCode, string(body))
 		return fmt.Errorf("slack webhook returned status: %d", resp.StatusCode)
 	}
 

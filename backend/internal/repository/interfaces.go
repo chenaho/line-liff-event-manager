@@ -50,10 +50,18 @@ type UserRepository interface {
 	Exists(ctx context.Context, userID string) (bool, error)
 }
 
+// SettingsRepository defines the interface for app settings operations
+type SettingsRepository interface {
+	Get(ctx context.Context, key string) (string, error)
+	Set(ctx context.Context, key, value string) error
+	GetAll(ctx context.Context) (map[string]string, error)
+}
+
 // Repositories holds all repository instances
 type Repositories struct {
 	Events       EventRepository
 	Interactions InteractionRepository
 	Users        UserRepository
+	Settings     SettingsRepository
 	Close        func() error
 }

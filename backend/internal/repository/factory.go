@@ -65,6 +65,7 @@ func NewRepositories(cfg *Config) (*Repositories, error) {
 		Events:       NewPostgresEventRepository(client),
 		Interactions: NewPostgresInteractionRepository(client),
 		Users:        NewPostgresUserRepository(client),
+		Settings:     NewPostgresSettingsRepository(client),
 		Close: func() error {
 			return client.Close()
 		},

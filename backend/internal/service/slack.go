@@ -4,15 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 )
 
 // SlackService handles Slack webhook notifications
-type SlackService struct {
-	WebhookURL string
-}
+type SlackService struct{}
 
 // SlackMessage represents a Slack webhook message
 type SlackMessage struct {
@@ -31,17 +30,23 @@ type Attachment struct {
 
 // NewSlackService creates a new SlackService
 func NewSlackService() *SlackService {
-	webhookURL := os.Getenv("SLACK_WEBHOOK_URL")
-	if webhookURL == "" {
-		// Default webhook URL (can be overridden by environment variable)
-		webhookURL = "https://hooks.slack.com/services/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"
+	url := os.Getenv("SLACK_WEBHOOK_URL")
+	if url == "" {
+		log.Println("[Slack] WARNING: SLACK_WEBHOOK_URL not set, notifications will be disabled")
+	} else {
+		log.Println("[Slack] Service initialized with webhook URL configured")
 	}
-	return &SlackService{WebhookURL: webhookURL}
+	return &SlackService{}
+}
+
+// getWebhookURL reads the webhook URL from env each time so updates take effect without restart
+func (s *SlackService) getWebhookURL() string {
+	return os.Getenv("SLACK_WEBHOOK_URL")
 }
 
 // SendLineUpNotification sends a notification for lineup status changes
 func (s *SlackService) SendLineUpNotification(eventTitle, userName, action, status string, note string) error {
-	if s.WebhookURL == "" {
+	if s.getWebhookURL() == "" {
 		log.Println("[Slack] No webhook URL configured, skipping notification")
 		return nil
 	}
@@ -101,13 +106,20 @@ func getActionVerb(action string) string {
 }
 
 func (s *SlackService) sendMessage(msg SlackMessage) error {
+	webhookURL := s.getWebhookURL()
+	if webhookURL == "" {
+		log.Println("[Slack] No webhook URL configured, skipping")
+		return nil
+	}
+
 	jsonData, err := json.Marshal(msg)
 	if err != nil {
 		log.Printf("[Slack] Failed to marshal message: %v", err)
 		return err
 	}
 
-	resp, err := http.Post(s.WebhookURL, "application/json", bytes.NewBuffer(jsonData))
+	log.Printf("[Slack] Sending notification to webhook...")
+	resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Printf("[Slack] Failed to send message: %v", err)
 		return err
@@ -115,7 +127,8 @@ func (s *SlackService) sendMessage(msg SlackMessage) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("[Slack] Webhook returned status: %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("[Slack] Webhook returned status: %d, body: %s, url_prefix: %s", resp.StatusCode, string(body), webhookURL[:50])
 		return fmt.Errorf("slack webhook returned status: %d", resp.StatusCode)
 	}
 

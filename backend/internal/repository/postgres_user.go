@@ -19,24 +19,24 @@ func NewPostgresUserRepository(client *PostgresClient) *PostgresUserRepository {
 
 func (r *PostgresUserRepository) Create(ctx context.Context, user *models.User) error {
 	query := `
-		INSERT INTO users (line_user_id, line_display_name, picture_url, role, created_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO users (line_user_id, line_display_name, picture_url, custom_name, role, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 	_, err := r.client.DB.ExecContext(ctx, query,
-		user.LineUserID, user.LineDisplayName, user.PictureURL, user.Role, user.CreatedAt)
+		user.LineUserID, user.LineDisplayName, user.PictureURL, user.CustomName, user.Role, user.CreatedAt)
 	return err
 }
 
 func (r *PostgresUserRepository) GetByID(ctx context.Context, userID string) (*models.User, error) {
 	query := `
-		SELECT line_user_id, line_display_name, picture_url, role, created_at
+		SELECT line_user_id, line_display_name, picture_url, COALESCE(custom_name, ''), role, created_at
 		FROM users WHERE line_user_id = $1
 	`
 	var user models.User
 	var displayName, pictureUrl sql.NullString
 
 	err := r.client.DB.QueryRowContext(ctx, query, userID).Scan(
-		&user.LineUserID, &displayName, &pictureUrl, &user.Role, &user.CreatedAt)
+		&user.LineUserID, &displayName, &pictureUrl, &user.CustomName, &user.Role, &user.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -54,11 +54,11 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, userID string) (*m
 func (r *PostgresUserRepository) Update(ctx context.Context, user *models.User) error {
 	query := `
 		UPDATE users 
-		SET line_display_name = $2, picture_url = $3, role = $4
+		SET line_display_name = $2, picture_url = $3, custom_name = $4, role = $5
 		WHERE line_user_id = $1
 	`
 	_, err := r.client.DB.ExecContext(ctx, query,
-		user.LineUserID, user.LineDisplayName, user.PictureURL, user.Role)
+		user.LineUserID, user.LineDisplayName, user.PictureURL, user.CustomName, user.Role)
 	return err
 }
 
@@ -75,6 +75,8 @@ func (r *PostgresUserRepository) UpdateFields(ctx context.Context, userID string
 			user.LineDisplayName = value.(string)
 		case "pictureUrl":
 			user.PictureURL = value.(string)
+		case "customName":
+			user.CustomName = value.(string)
 		case "role":
 			user.Role = value.(string)
 		}

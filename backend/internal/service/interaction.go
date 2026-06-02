@@ -198,16 +198,35 @@ func (s *InteractionService) GetEventStatus(ctx context.Context, eventID string)
 
 	log.Printf("[GetEventStatus] Successfully fetched %d total records", len(interactions))
 
+	// Collect unique user IDs and look up custom names
+	userCustomNames := make(map[string]string)
+	seen := make(map[string]bool)
+	for _, rec := range interactions {
+		if !seen[rec.UserID] {
+			seen[rec.UserID] = true
+			user, err := s.Users.GetByID(ctx, rec.UserID)
+			if err == nil && user.CustomName != "" {
+				userCustomNames[rec.UserID] = user.CustomName
+			}
+		}
+	}
+
 	// Build result
 	result := make(map[string]interface{})
 	list := make([]map[string]interface{}, 0, len(interactions))
 
 	for _, rec := range interactions {
+		displayName := rec.UserDisplayName
+		// Override with admin-managed custom name if available
+		if customName, ok := userCustomNames[rec.UserID]; ok {
+			displayName = customName
+		}
+
 		recMap := map[string]interface{}{
 			"id":              rec.ID,
 			"type":            rec.Type,
 			"userId":          rec.UserID,
-			"userDisplayName": rec.UserDisplayName,
+			"userDisplayName": displayName,
 			"userPictureUrl":  rec.UserPictureUrl,
 			"timestamp":       rec.Timestamp,
 			"status":          rec.Status,

@@ -46,9 +46,12 @@ CREATE TABLE IF NOT EXISTS users (
     line_user_id        VARCHAR(50) PRIMARY KEY,
     line_display_name   VARCHAR(100),
     picture_url         TEXT,
+    custom_name         VARCHAR(100) DEFAULT '',
     role                VARCHAR(20) DEFAULT 'user' CHECK (role IN ('user', 'admin')),
     created_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+COMMENT ON COLUMN users.custom_name IS 'Admin-managed display name override. When not empty, used instead of line_display_name in LINEUP displays.';
 
 -- Settings table (key-value store for app configuration)
 CREATE TABLE IF NOT EXISTS settings (
